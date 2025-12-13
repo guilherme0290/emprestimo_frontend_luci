@@ -270,7 +270,7 @@ class _GroupSelectorBar extends StatelessWidget {
       case GroupByOption.none:
         return 'Sem agrupamento';
       case GroupByOption.caixa:
-        return 'Caixa';
+        return 'Responsavel';
       case GroupByOption.vendedor:
         return 'Vendedor';
     }

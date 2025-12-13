@@ -248,7 +248,7 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
               ),
               columnSpacing: 32,
               columns: const [
-                DataColumn(label: Text('Caixa')),
+                DataColumn(label: Text('Responsavel')),
                 DataColumn(label: Text('Nº Parcelas')),
                 DataColumn(label: Text('Valor Total')),
               ],

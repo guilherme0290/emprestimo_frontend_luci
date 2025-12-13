@@ -432,7 +432,7 @@ class _ContasReceberFormState extends State<ContasReceberForm> {
               }).toList(),
               onChanged: (value) => setState(() => _caixaSelecionado = value),
               decoration: InputDecoration(
-                labelText: "Caixa",
+                labelText: "Responsavel",
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 contentPadding:

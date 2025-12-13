@@ -221,7 +221,7 @@ class _TransacoesResumoCardState extends State<TransacoesResumoCard>
                 children: [
                   Expanded(
                     child: DropdownButton<String>(
-                      hint: const Text("Caixa"),
+                      hint: const Text("Responsavel"),
                       value: caixaSelecionado,
                       isExpanded: true,
                       items: caixas
