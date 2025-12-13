@@ -258,7 +258,7 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
       cep: Util.removerMascara(cepController.text),
       complemento: complementoController.text,
       numero: numeroController.text,
-      cidadeId: cidadeSelecionada?.id,
+      cidadeId: _cidadeSelecionada ?? cidadeSelecionada?.id,
       vendedorId: vendedorId,
     );
 
@@ -436,7 +436,7 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
                     selectedCidade: cidadeSelecionada,
                     onCidadeSelecionada: (cidade) {
                       cidadeSelecionada = cidade;
-                      // faça algo com a cidade.id
+                      _cidadeSelecionada = cidade.id;
                     },
                   ),
                   const SizedBox(height: 10),
