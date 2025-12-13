@@ -77,7 +77,7 @@ class _AlterarSenhaScreenState extends State<AlterarSenhaScreen> {
                 children: [
                   _buildHeader(),
                   const SizedBox(height: 30),
-                  _buildTextField(senhaController, "Email", Icons.mail, false),
+                  _buildTextField(emailController, "Email", Icons.mail, false),
                   const SizedBox(height: 16),
                   _buildTextField(
                       senhaController, "Nova Senha", Icons.lock, true),
@@ -101,7 +101,7 @@ class _AlterarSenhaScreenState extends State<AlterarSenhaScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           "Alterar Senha",
           style: TextStyle(
             fontSize: 26,
