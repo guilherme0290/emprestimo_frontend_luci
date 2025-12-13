@@ -641,11 +641,11 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
           _buscarCep(); // Chama a função automaticamente ao completar 8 dígitos
         }
       },
-      validator: (value) {
-        if (value == null || value.isEmpty) return "Obrigatório";
-        if (value.length < 8) return "CEP inválido";
-        return null;
-      },
+      // validator: (value) {
+      //   if (value == null || value.isEmpty) return "Obrigatório";
+      //   if (value.length < 8) return "CEP inválido";
+      //   return null;
+      // },
     );
   }
 
