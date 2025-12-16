@@ -82,15 +82,32 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen> {
           bodyContent = _buildConteudoCompleto();
         }
 
+        final podeAcoes = (_emprestimo?.statusContasReceber != 'QUITADO');
+
         return Scaffold(
           appBar: _emprestimo != null ? _buildAppBar() : null,
           body: bodyContent,
-          floatingActionButton: (_emprestimo?.statusContasReceber != 'QUITADO')
-              ? FloatingActionButton(
-                  onPressed: _abrirWhatsapp,
-                  backgroundColor: Colors.green,
-                  tooltip: 'Cobrar no WhatsApp',
-                  child: const Icon(FontAwesomeIcons.whatsapp),
+          floatingActionButton: podeAcoes
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    FloatingActionButton(
+                      heroTag: 'fab_baixar_parcela',
+                      onPressed: _abrirDialogBaixa,
+                      backgroundColor: Colors.blueAccent,
+                      tooltip: 'Baixar parcela',
+                      child: const Icon(Icons.price_check, color: Colors.white),
+                    ),
+                    const SizedBox(height: 12),
+                    FloatingActionButton(
+                      heroTag: 'fab_whatsapp',
+                      onPressed: _abrirWhatsapp,
+                      backgroundColor: Colors.green,
+                      tooltip: 'Cobrar no WhatsApp',
+                      child: const Icon(FontAwesomeIcons.whatsapp),
+                    ),
+                  ],
                 )
               : null,
         );
