@@ -364,8 +364,7 @@ class _ContasReceberFormState extends State<ContasReceberForm> {
                       final dataSelecionada = await showDatePicker(
                         context: context,
                         initialDate: DateTime.now(),
-                        firstDate:
-                            DateTime.now().subtract(const Duration(days: 0)),
+                        firstDate: DateTime(2000),
                         lastDate: DateTime.now().add(const Duration(days: 365)),
                       );
                       if (dataSelecionada != null) {
