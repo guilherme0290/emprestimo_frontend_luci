@@ -543,8 +543,9 @@ Aguardamos seu retorno!
     }
     final resultado = await showDialog<BaixaParcelaResult>(
       context: context,
-      builder: (_) =>
-          DialogBaixaParcelas(parcelasSelecionadas: parcelasSelecionadas),
+      builder: (_) => DialogBaixaParcelas(
+          parcelasSelecionadas: parcelasSelecionadas,
+          contasReceber: _emprestimo!),
     );
 
     tratarRetornoBaixa(resultado, parcelasSelecionadas);
