@@ -1,7 +1,11 @@
+import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:emprestimos_app/core/role.dart';
+import 'package:emprestimos_app/models/parametro_vendedor.dart';
 import 'package:emprestimos_app/providers/auth_provider.dart';
+import 'package:emprestimos_app/providers/parametros_provider.dart';
 import 'package:emprestimos_app/widgets/background_screens_widget.dart';
 import 'package:emprestimos_app/widgets/custom_floating_action_button.dart';
+import 'package:emprestimos_app/widgets/dialog_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/cliente_provider.dart';
@@ -23,13 +27,17 @@ class _ClienteListScreenState extends State<ClienteListScreen> {
   bool _isEmpresa = false;
   bool _loading = true;
   AuthProvider? _authProvider;
+  bool _podeCadastrarCliente = false;
+  bool _carregandoPermissaoCadastro = false;
 
   @override
   void initState() {
     super.initState();
 
     _authProvider = Provider.of<AuthProvider>(context, listen: false);
-    _verificarTipoUsuario();
+    Future.microtask(() async {
+      await _verificarTipoUsuario();
+    });
     Future.microtask(() async {
       if (!mounted) return;
       await Provider.of<ClienteProvider>(context, listen: false)
@@ -44,7 +52,7 @@ class _ClienteListScreenState extends State<ClienteListScreen> {
 
   Future<void> _verificarTipoUsuario() async {
     if (_authProvider == null) return;
-    _authProvider!.carregarDadosSalvos();
+    await _authProvider!.carregarDadosSalvos();
 
     final roleStr = _authProvider!.loginResponse?.role ?? '';
     final roleEnum = Role.values.firstWhere(
@@ -55,6 +63,60 @@ class _ClienteListScreenState extends State<ClienteListScreen> {
     setState(() {
       _isEmpresa = roleEnum == Role.EMPRESA;
       _loading = _authProvider!.isLoading;
+    });
+
+    if (roleEnum == Role.VENDEDOR) {
+      await _carregarPermissaoCadastroCliente();
+    }
+  }
+
+  Future<void> _carregarPermissaoCadastroCliente() async {
+    if (_authProvider?.loginResponse?.usuario.id == null) return;
+    setState(() {
+      _carregandoPermissaoCadastro = true;
+    });
+
+    final parametroProvider =
+        Provider.of<ParametroProvider>(context, listen: false);
+    await parametroProvider
+        .buscarParametrosVendedor(_authProvider!.loginResponse!.usuario.id);
+
+    if (!mounted) return;
+
+    final ParametroVendedor? parametro = parametroProvider.parametrosVendedor
+        .where((p) => p.chave == 'PERMITIR_CADASTRO_CLIENTE')
+        .cast<ParametroVendedor?>()
+        .firstWhere((p) => p != null, orElse: () => null);
+
+    final bool permitido = parametro == null
+        ? false
+        : (parametro.valorConvertido is bool
+            ? parametro.valorConvertido as bool
+            : parametro.valor.toLowerCase() == 'true');
+
+    setState(() {
+      _podeCadastrarCliente = permitido;
+      _carregandoPermissaoCadastro = false;
+    });
+  }
+
+  void _mostrarPermissaoBloqueada() {
+    MyAwesomeDialog(
+      context: context,
+      dialogType: DialogType.warning,
+      title: "Permissão bloqueada",
+      message:
+          "Você não tem permissão para cadastrar clientes. Solicite liberação na aba Permissões do seu perfil ou peça ao administrador.",
+      btnOkText: "Entendi",
+    ).show();
+  }
+
+  void _abrirCadastroCliente(ClienteProvider clienteProvider) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ClienteFormScreen()),
+    ).then((_) {
+      clienteProvider.carregarClientes();
     });
   }
 
@@ -93,23 +155,21 @@ class _ClienteListScreenState extends State<ClienteListScreen> {
           ),
         ],
       ),
-      // 👇 mostra o FAB apenas se for empresa
-      floatingActionButton: _isEmpresa
+      floatingActionButton: (_isEmpresa || !_loading)
           ? CustomFloatingActionButton(
               heroTag: "novo_cliente_fab",
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => ClienteFormScreen()),
-                ).then((_) {
-                  clienteProvider.carregarClientes();
-                });
-              },
+              onPressed: _carregandoPermissaoCadastro
+                  ? null
+                  : (_isEmpresa || _podeCadastrarCliente)
+                      ? () => _abrirCadastroCliente(clienteProvider)
+                      : _mostrarPermissaoBloqueada,
               icon: Icons.add,
               label: "Novo Cliente",
-              backgroundColor: Theme.of(context).primaryColor,
+              backgroundColor: (_isEmpresa || _podeCadastrarCliente)
+                  ? Theme.of(context).primaryColor
+                  : Colors.grey,
             )
-          : null, // não exibe se não for empresa
+          : null,
     );
   }
 

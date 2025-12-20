@@ -2,21 +2,24 @@ class AutorizacaoParametro {
   final int parametroId;
   final String novoValor;
   final int usuarioId;
-  final int clienteId;
+  final int? clienteId;
 
   AutorizacaoParametro({
     required this.parametroId,
     required this.novoValor,
     required this.usuarioId,
-    required this.clienteId,
+    this.clienteId,
   });
 
   Map<String, dynamic> toJson() {
-    return {
+    final data = {
       "parametroId": parametroId,
       'novoValor': novoValor,
       'usuarioId': usuarioId,
-      'clienteId': clienteId,
     };
+    if (clienteId != null) {
+      data['clienteId'] = clienteId!;
+    }
+    return data;
   }
 }

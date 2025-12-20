@@ -175,6 +175,58 @@ Aguardamos seu retorno!
         telefoneCliente: telefoneCliente);
   }
 
+  void _abrirWhatsappParcelaPaga(ParcelaDTO parcela) {
+    final String nomeCliente =
+        _emprestimo?.cliente.nome ?? "Cliente Desconhecido";
+    final String telefoneCliente = _emprestimo?.cliente.telefone ?? "";
+    final String numeroParcela = parcela.numeroParcela.toString();
+    final String valorParcela = Util.formatarMoeda(parcela.valor);
+    final String? dataPagamento = parcela.dataPagamento;
+    final String dataPagamentoFormatada = dataPagamento != null
+        ? FormatData.formatarDataHora(dataPagamento)
+        : "hoje";
+
+    if (telefoneCliente.isEmpty) {
+      MyAwesomeDialog(
+          context: context,
+          message: 'Este cliente não possui um telefone cadastrado.',
+          title: 'Atenção',
+          dialogType: DialogType.error,
+          btnOkText: 'Ok',
+          onOkPressed: () => {}).show();
+      return;
+    }
+
+    final String mensagemPadrao = """
+Olá $nomeCliente,
+
+Recebemos o pagamento da parcela nº $numeroParcela no valor de $valorParcela em $dataPagamentoFormatada.
+
+Obrigado!
+""";
+
+    final mensagemController = TextEditingController(text: mensagemPadrao);
+
+    showEditMessageDialog(
+        context: context,
+        mensagemController: mensagemController,
+        telefoneCliente: telefoneCliente);
+  }
+
+  ParcelaDTO? _buscarParcelaAtualizada(
+    ContasReceberDTO emprestimoAtualizado,
+    List<ParcelaDTO> parcelasSelecionadas,
+  ) {
+    if (parcelasSelecionadas.isEmpty) return null;
+    final parcelaId = parcelasSelecionadas.first.id;
+    for (final parcela in emprestimoAtualizado.parcelas) {
+      if (parcela.id == parcelaId) {
+        return parcela;
+      }
+    }
+    return null;
+  }
+
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: AppTheme.primaryColor,
@@ -574,6 +626,8 @@ Aguardamos seu retorno!
 
     if (resultado == null) return;
     if (resultado.sucesso == true) {
+      final parcelasSelecionadasSnapshot =
+          List<ParcelaDTO>.from(parcelasSelecionadas);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
@@ -597,6 +651,13 @@ Aguardamos seu retorno!
           _selectedParcelas =
               List.generate(_emprestimo!.parcelas.length, (index) => false);
         });
+        final parcelaAtualizada = _buscarParcelaAtualizada(
+          emprestimoAtualizado,
+          parcelasSelecionadasSnapshot,
+        );
+        if (parcelaAtualizada != null) {
+          _abrirWhatsappParcelaPaga(parcelaAtualizada);
+        }
       }
     } else {
       MyAwesomeDialog(

@@ -1,14 +1,19 @@
 import 'package:emprestimos_app/core/theme/theme.dart';
 import 'package:emprestimos_app/core/util.dart';
+import 'package:emprestimos_app/core/role.dart';
 import 'package:emprestimos_app/models/emprestimo.dart';
 import 'package:emprestimos_app/models/parametro.dart';
+import 'package:emprestimos_app/models/parametro_vendedor.dart';
+import 'package:emprestimos_app/providers/auth_provider.dart';
 import 'package:emprestimos_app/providers/emprestimo_provider.dart';
 import 'package:emprestimos_app/providers/parametros_provider.dart';
 import 'package:emprestimos_app/screens/clientes/cliente_create_screen.dart';
 import 'package:emprestimos_app/screens/emprestimos/emprestimo_create_step1.dart';
 import 'package:emprestimos_app/screens/score/score_list_screen.dart';
 import 'package:emprestimos_app/widgets/custom_floating_action_button.dart';
+import 'package:emprestimos_app/widgets/dialog_widget.dart';
 import 'package:emprestimos_app/widgets/list_emprestimo_widget.dart';
+import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -30,10 +35,15 @@ class _DetalhesClientePageState extends State<DetalhesContasReceber> {
   final parametrosCliente = <Parametro>[];
   List parametrosEmpresa = <Parametro>[];
   int _emprestimosEmAberto = 0;
+  AuthProvider? _authProvider;
+  bool _isVendedor = false;
+  bool _podeCadastrarContasReceber = true;
+  bool _carregandoPermissaoCadastro = false;
 
   @override
   void initState() {
     super.initState();
+    _authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) {
@@ -51,8 +61,71 @@ class _DetalhesClientePageState extends State<DetalhesContasReceber> {
         parametroProvider.buscarParametrosEmpresa().then((value) {
           parametrosEmpresa = parametroProvider.parametrosEmpresa;
         }),
+        _verificarPermissaoCadastroContasReceber(),
       ]);
     });
+  }
+
+  Future<void> _verificarPermissaoCadastroContasReceber() async {
+    if (_authProvider == null) return;
+    await _authProvider!.carregarDadosSalvos();
+    if (!mounted) return;
+
+    final roleStr = _authProvider!.loginResponse?.role ?? '';
+    final roleEnum = Role.values.firstWhere(
+      (r) => r.name == roleStr,
+      orElse: () => Role.EMPRESA,
+    );
+
+    final isVendedor = roleEnum == Role.VENDEDOR;
+    setState(() {
+      _isVendedor = isVendedor;
+      _podeCadastrarContasReceber = !isVendedor;
+      _carregandoPermissaoCadastro = isVendedor;
+    });
+
+    if (!isVendedor) return;
+    if (_authProvider?.loginResponse?.usuario.id == null) {
+      setState(() {
+        _carregandoPermissaoCadastro = false;
+        _podeCadastrarContasReceber = false;
+      });
+      return;
+    }
+
+    final parametroProvider =
+        Provider.of<ParametroProvider>(context, listen: false);
+    await parametroProvider
+        .buscarParametrosVendedor(_authProvider!.loginResponse!.usuario.id);
+
+    if (!mounted) return;
+
+    final ParametroVendedor? parametro = parametroProvider.parametrosVendedor
+        .where((p) => p.chave == 'PERMITIR_CADASTRO_CONTAS_RECEBER')
+        .cast<ParametroVendedor?>()
+        .firstWhere((p) => p != null, orElse: () => null);
+
+    final bool permitido = parametro == null
+        ? false
+        : (parametro.valorConvertido is bool
+            ? parametro.valorConvertido as bool
+            : parametro.valor.toLowerCase() == 'true');
+
+    setState(() {
+      _podeCadastrarContasReceber = permitido;
+      _carregandoPermissaoCadastro = false;
+    });
+  }
+
+  void _mostrarPermissaoCadastroBloqueada() {
+    MyAwesomeDialog(
+      context: context,
+      dialogType: DialogType.warning,
+      title: "Permissão bloqueada",
+      message:
+          "O parâmetro não está habilitado para Nova Venda. Consulte o administrador ou solicite liberação na tela XX.",
+      btnOkText: "Entendi",
+    ).show();
   }
 
   Future<List<Parametro>> _carregarParametrosCliente(int clienteId) async {
@@ -158,19 +231,30 @@ class _DetalhesClientePageState extends State<DetalhesContasReceber> {
             builder: (context, parametroProvider, _) {
               final podeCriar = parametroProvider
                   .podeCriarNovoContasReceber(_emprestimosEmAberto);
+              final podeCadastrar =
+                  !_isVendedor || _podeCadastrarContasReceber;
+              final podeAbrir = podeCriar &&
+                  podeCadastrar &&
+                  !_carregandoPermissaoCadastro;
+              final podeMostrarBloqueio = podeCriar &&
+                  _isVendedor &&
+                  !_podeCadastrarContasReceber &&
+                  !_carregandoPermissaoCadastro;
 
               return CustomFloatingActionButton(
                 heroTag: "novo_emprestimo_fab",
-                onPressed: podeCriar
+                onPressed: podeAbrir
                     ? () {
                         // função síncrona que chama async sem retornar
                         _navegarParaCriarContasReceber();
                       }
-                    : null,
+                    : (podeMostrarBloqueio
+                        ? _mostrarPermissaoCadastroBloqueada
+                        : null),
                 icon: Icons.add,
                 label: "Nova Venda",
                 backgroundColor:
-                    podeCriar ? Theme.of(context).primaryColor : Colors.grey,
+                    podeAbrir ? Theme.of(context).primaryColor : Colors.grey,
               );
             },
           ),

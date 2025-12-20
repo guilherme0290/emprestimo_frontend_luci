@@ -3,6 +3,7 @@ import 'package:emprestimos_app/models/api_response.dart';
 import 'package:emprestimos_app/models/aprovacao_parametro.dart';
 import 'package:emprestimos_app/models/autorizacao_parametro.dart';
 import 'package:emprestimos_app/models/parametro.dart';
+import 'package:emprestimos_app/models/parametro_vendedor.dart';
 import 'package:emprestimos_app/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 
@@ -11,11 +12,13 @@ class ParametroProvider with ChangeNotifier {
   String? _errorMessage;
   List<Parametro> _parametrosCliente = [];
   List<Parametro> _parametrosEmpresa = [];
+  List<ParametroVendedor> _parametrosVendedor = [];
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   List<Parametro> get parametrosCliente => _parametrosCliente;
   List<Parametro> get parametrosEmpresa => _parametrosEmpresa;
+  List<ParametroVendedor> get parametrosVendedor => _parametrosVendedor;
 
   AuthProvider _authProvider;
 
@@ -85,6 +88,32 @@ class ParametroProvider with ChangeNotifier {
     }
   }
 
+  Future<void> buscarParametrosVendedor(int vendedorId) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await Api.dio.get("/parametros/vendedor/$vendedorId");
+      List<dynamic> lista = [];
+
+      if (response.data is List) {
+        lista = response.data as List<dynamic>;
+      } else if (response.data is Map &&
+          (response.data as Map<String, dynamic>)['data'] is List) {
+        lista = (response.data as Map<String, dynamic>)['data'] as List<dynamic>;
+      }
+
+      _parametrosVendedor =
+          lista.map((json) => ParametroVendedor.fromJson(json)).toList();
+    } catch (e) {
+      _errorMessage = "Erro ao buscar parâmetros do vendedor.";
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> atualizarParametro(Parametro parametro) async {
     _isLoading = true;
     _errorMessage = null;
@@ -92,6 +121,35 @@ class ParametroProvider with ChangeNotifier {
     try {
       final response = await Api.dio
           .put("/parametros/${parametro.id}", data: parametro.toJson());
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      _errorMessage = "Erro ao atualizar parâmetro.";
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> atualizarParametroDireto({
+    required int parametroId,
+    required bool valor,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await Api.dio.put(
+        "/parametros/$parametroId",
+        data: {"valor": valor.toString()},
+      );
       if (response.statusCode != null &&
           response.statusCode! >= 200 &&
           response.statusCode! < 300) {
@@ -154,6 +212,38 @@ class ParametroProvider with ChangeNotifier {
         novoValor: novoValor,
         usuarioId: usuarioId,
         clienteId: clienteId,
+      );
+
+      final response = await Api.dio.post(
+        "/aprovacoes-parametros/solicitar",
+        data: request.toJson(),
+      );
+
+      return response.statusCode == 202;
+    } catch (e) {
+      _errorMessage = "Erro ao solicitar aprovação de parâmetro.";
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> solicitarAprovacaoVendedor({
+    required int parametroId,
+    required bool novoValor,
+    required int usuarioId,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final request = AutorizacaoParametro(
+        parametroId: parametroId,
+        novoValor: novoValor.toString(),
+        usuarioId: usuarioId,
       );
 
       final response = await Api.dio.post(

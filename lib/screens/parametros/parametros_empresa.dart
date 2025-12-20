@@ -26,6 +26,10 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
   final TextEditingController limiteContasReceberEmAbertoPorClienteController =
       TextEditingController();
   bool permitirBaixaParcial = false;
+  bool obrigarVendedorVenda = false;
+  bool permitirVendedorTodosClientes = false;
+  bool _atualizandoObrigarVendedorVenda = false;
+  bool _atualizandoPermitirVendedorTodosClientes = false;
   bool _isLoading = true;
 
   @override
@@ -64,6 +68,15 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
             .buscarParametroEmpresaChave("PERMITIR_BAIXA_PARCIAL")
             ?.valor ??
         "false";
+    final obrigarVendedor = parametroProvider
+            .buscarParametroEmpresaChave("OBRIGAR_VENDEDOR_VENDA")
+            ?.valor ??
+        "false";
+    final permitirTodosClientes = parametroProvider
+            .buscarParametroEmpresaChave(
+                "PERMITIR_VENDEDOR_ACESSAR_TODOS_CLIENTES_EMPRESA")
+            ?.valor ??
+        "false";
 
     final limiteContasReceberEmAbertoPorCliente = parametroProvider
             .buscarParametroEmpresaChave("LIMITE_EMPRESTIMO_CLIENTE")
@@ -77,6 +90,9 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
           formatador.format(double.tryParse(limite) ?? 0.0);
       jurosPadraoController.text = juros.toString();
       permitirBaixaParcial = permitir.toLowerCase() == 'true';
+      obrigarVendedorVenda = obrigarVendedor.toLowerCase() == 'true';
+      permitirVendedorTodosClientes =
+          permitirTodosClientes.toLowerCase() == 'true';
       limiteContasReceberEmAbertoPorClienteController.text =
           limiteContasReceberEmAbertoPorCliente;
       _isLoading = false;
@@ -149,6 +165,92 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
     }
   }
 
+  Future<void> _atualizarObrigarVendedorVenda(bool value) async {
+    if (_atualizandoObrigarVendedorVenda) return;
+    final parametroProvider =
+        Provider.of<ParametroProvider>(context, listen: false);
+    final parametro = parametroProvider
+        .buscarParametroEmpresaChave("OBRIGAR_VENDEDOR_VENDA");
+
+    if (parametro?.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Parâmetro OBRIGAR_VENDEDOR_VENDA não encontrado."),
+        backgroundColor: Colors.red,
+      ));
+      return;
+    }
+
+    setState(() {
+      _atualizandoObrigarVendedorVenda = true;
+      obrigarVendedorVenda = value;
+    });
+
+    final sucesso = await parametroProvider.atualizarParametroDireto(
+      parametroId: parametro!.id!,
+      valor: value,
+    );
+
+    if (!mounted) return;
+
+    if (!sucesso) {
+      setState(() {
+        obrigarVendedorVenda = !value;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Erro ao atualizar parâmetro de vendedor na venda."),
+        backgroundColor: Colors.red,
+      ));
+    }
+
+    setState(() {
+      _atualizandoObrigarVendedorVenda = false;
+    });
+  }
+
+  Future<void> _atualizarPermitirVendedorTodosClientes(bool value) async {
+    if (_atualizandoPermitirVendedorTodosClientes) return;
+    final parametroProvider =
+        Provider.of<ParametroProvider>(context, listen: false);
+    final parametro = parametroProvider.buscarParametroEmpresaChave(
+        "PERMITIR_VENDEDOR_ACESSAR_TODOS_CLIENTES_EMPRESA");
+
+    if (parametro?.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            "Parâmetro PERMITIR_VENDEDOR_ACESSAR_TODOS_CLIENTES_EMPRESA não encontrado."),
+        backgroundColor: Colors.red,
+      ));
+      return;
+    }
+
+    setState(() {
+      _atualizandoPermitirVendedorTodosClientes = true;
+      permitirVendedorTodosClientes = value;
+    });
+
+    final sucesso = await parametroProvider.atualizarParametroDireto(
+      parametroId: parametro!.id!,
+      valor: value,
+    );
+
+    if (!mounted) return;
+
+    if (!sucesso) {
+      setState(() {
+        permitirVendedorTodosClientes = !value;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            "Erro ao atualizar parâmetro de acesso a todos os clientes."),
+        backgroundColor: Colors.red,
+      ));
+    }
+
+    setState(() {
+      _atualizandoPermitirVendedorTodosClientes = false;
+    });
+  }
+
   @override
   void dispose() {
     limiteContasReceberController.dispose();
@@ -213,6 +315,24 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
                           permitirBaixaParcial = value;
                         });
                       },
+                    ),
+                    const SizedBox(height: 10),
+                    SwitchListTile(
+                      title: const Text("Obrigar vendedor na venda"),
+                      activeColor: AppTheme.primaryColor,
+                      value: obrigarVendedorVenda,
+                      onChanged: _atualizandoObrigarVendedorVenda
+                          ? null
+                          : _atualizarObrigarVendedorVenda,
+                    ),
+                    const SizedBox(height: 10),
+                    SwitchListTile(
+                      title: const Text("Vendedor pode ver todos os clientes"),
+                      activeColor: AppTheme.primaryColor,
+                      value: permitirVendedorTodosClientes,
+                      onChanged: _atualizandoPermitirVendedorTodosClientes
+                          ? null
+                          : _atualizarPermitirVendedorTodosClientes,
                     ),
                     const SizedBox(height: 30),
                     CustomButton(

@@ -62,6 +62,7 @@ class _ContasReceberFormState extends State<ContasReceberForm> {
 
   bool _vencimentoFixo = false;
   DateTime _dataContrato = DateTime.now();
+  bool _obrigarVendedorVenda = false;
 
   bool _hasPenhora = false;
 
@@ -80,6 +81,7 @@ class _ContasReceberFormState extends State<ContasReceberForm> {
     _dataContratoController.text =
         DateFormat('dd/MM/yyyy').format(_dataContrato);
     _setarJurosPadrao();
+    _carregarObrigarVendedorVenda();
     _valorController.addListener(_verificarLimiteCredito);
 
     // ⚡ se já tiver caixas carregados no momento da criação, aplica o default
@@ -111,6 +113,61 @@ class _ContasReceberFormState extends State<ContasReceberForm> {
     final valorInt = valorDouble.toInt();
 
     _jurosController.text = valorInt.toString();
+  }
+
+  void _carregarObrigarVendedorVenda() {
+    final parametro = widget.parametrosEmpresa.firstWhere(
+      (p) => p.chave == 'OBRIGAR_VENDEDOR_VENDA',
+      orElse: () => Parametro(
+          valor: '', chave: '', id: 0, referenciaId: 0, tipoReferencia: ''),
+    );
+    _obrigarVendedorVenda = parametro.valor.toLowerCase() == 'true';
+  }
+
+  DateTime? _obterDataContratoParaVencimento() {
+    final texto = _dataContratoController.text.trim();
+    if (texto.isEmpty) return null;
+    try {
+      return DateFormat('dd/MM/yyyy').parse(texto);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  DateTime _adicionarMesComAjuste(DateTime dataBase, int meses) {
+    final mesAlvo = dataBase.month + meses;
+    final anoAlvo = dataBase.year + ((mesAlvo - 1) ~/ 12);
+    final mesNormalizado = ((mesAlvo - 1) % 12) + 1;
+    final ultimoDiaDoMes = DateTime(anoAlvo, mesNormalizado + 1, 0).day;
+    final dia = dataBase.day > ultimoDiaDoMes ? ultimoDiaDoMes : dataBase.day;
+    return DateTime(anoAlvo, mesNormalizado, dia);
+  }
+
+  void _sugerirPrimeiroVencimento() {
+    final dataContrato = _obterDataContratoParaVencimento();
+    if (dataContrato == null) return;
+
+    DateTime sugestao;
+    switch (_tipoPagamentoSelecionado) {
+      case "SEMANAL":
+        sugestao = dataContrato.add(const Duration(days: 7));
+        break;
+      case "QUINZENAL":
+        sugestao = dataContrato.add(const Duration(days: 15));
+        break;
+      case "DIARIO":
+        sugestao = dataContrato.add(const Duration(days: 1));
+        break;
+      case "MENSAL":
+      default:
+        sugestao = _adicionarMesComAjuste(dataContrato, 1);
+        break;
+    }
+
+    setState(() {
+      _dataPrimeiroVencimentoController.text =
+          DateFormat('dd/MM/yyyy').format(sugestao);
+    });
   }
 
   void _verificarLimiteCredito() {
@@ -302,6 +359,7 @@ class _ContasReceberFormState extends State<ContasReceberForm> {
                           _numeroParcelasController.text = "1";
                         }
                       });
+                      _sugerirPrimeiroVencimento();
                     },
                     decoration: InputDecoration(
                       labelText: "Tipo de Pagamento",
@@ -322,7 +380,8 @@ class _ContasReceberFormState extends State<ContasReceberForm> {
             ),
             const SizedBox(height: 12),
 
-            if ((widget.vendedores ?? []).isNotEmpty) ...[
+            if (_obrigarVendedorVenda ||
+                (widget.vendedores ?? []).isNotEmpty) ...[
               DropdownButtonFormField<Vendedor>(
                 value: _vendedorSelecionado,
                 isExpanded: true,
@@ -337,8 +396,13 @@ class _ContasReceberFormState extends State<ContasReceberForm> {
                 }).toList(),
                 onChanged: (value) =>
                     setState(() => _vendedorSelecionado = value),
+                validator: (value) => _obrigarVendedorVenda && value == null
+                    ? "Selecione um vendedor"
+                    : null,
                 decoration: InputDecoration(
-                  labelText: "Vendedor (opcional)",
+                  labelText: _obrigarVendedorVenda
+                      ? "Vendedor"
+                      : "Vendedor (opcional)",
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8)),
                   contentPadding:
