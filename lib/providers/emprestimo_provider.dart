@@ -270,6 +270,86 @@ class ContasReceberProvider with ChangeNotifier {
     }
   }
 
+  Future<List<ContasReceberDTO>> buscarContasReceberPorFiltro({
+    required String query,
+    int? vendedorId,
+    int? caixaId,
+  }) async {
+    try {
+      await Api.loadAuthToken();
+      final response = await Api.dio.get(
+        "/contasreceber/search",
+        queryParameters: {
+          "q": query,
+          if (vendedorId != null) "vendedorId": vendedorId,
+          if (caixaId != null) "caixaId": caixaId,
+        },
+      );
+
+      final apiResponse = ApiResponse<List<ContasReceberDTO>>.fromJson(
+        response.data,
+        (data) => (data as List)
+            .map((json) => ContasReceberDTO.fromJson(json))
+            .toList(),
+      );
+
+      if (apiResponse.sucesso) {
+        return apiResponse.data ?? [];
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<bool> transferirContasReceberVendedor({
+    required List<int> contasReceberIds,
+    required int novoVendedorId,
+  }) async {
+    try {
+      await Api.loadAuthToken();
+      final response = await Api.dio.post(
+        "/contasreceber/transferencia-vendedor",
+        data: {
+          "contasReceberIds": contasReceberIds,
+          "novoVendedorId": novoVendedorId,
+        },
+      );
+
+      final apiResponse = ApiResponse<bool>.fromJson(
+        response.data,
+        (data) => data as bool? ?? true,
+      );
+      return apiResponse.sucesso;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> transferirContasReceberCaixa({
+    required List<int> contasReceberIds,
+    required int novoCaixaId,
+  }) async {
+    try {
+      await Api.loadAuthToken();
+      final response = await Api.dio.post(
+        "/contasreceber/transferencia-caixa",
+        data: {
+          "contasReceberIds": contasReceberIds,
+          "novoCaixaId": novoCaixaId,
+        },
+      );
+
+      final apiResponse = ApiResponse<bool>.fromJson(
+        response.data,
+        (data) => data as bool? ?? true,
+      );
+      return apiResponse.sucesso;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<void> buscarParcelasRelevantes() async {
     _isLoading = true;
     _errorMessage = null;

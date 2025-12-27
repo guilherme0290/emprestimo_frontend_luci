@@ -1,4 +1,5 @@
 import 'package:emprestimos_app/models/planos.dart';
+import 'package:emprestimos_app/providers/empresa_provider.dart';
 import 'package:emprestimos_app/screens/cobranca/resumo_cobranca.dart';
 import 'package:emprestimos_app/screens/localizar_parcela/localizar_parcela.dart';
 import 'package:emprestimos_app/screens/vendedores/vendedor_list_screen.dart';
@@ -6,8 +7,11 @@ import 'package:emprestimos_app/screens/config/config_screen.dart';
 import 'package:emprestimos_app/core/theme/theme.dart';
 import 'package:emprestimos_app/screens/home/home_empresa_screen.dart';
 import 'package:emprestimos_app/screens/home/home_vendedor_screen.dart';
+import 'package:emprestimos_app/screens/transferencia/transferencia_caixa_screen.dart';
+import 'package:emprestimos_app/screens/transferencia/transferencia_vendedores_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../clientes/cliente_list_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -27,8 +31,11 @@ class _MainScreenState extends State<MainScreen> {
 
   bool get isWeb => kIsWeb || MediaQuery.of(context).size.width > 800;
   bool get isVendedor => widget.role == "VENDEDOR";
-  bool get isPlanoPremium =>
-      widget.plano?.nome.toUpperCase().contains("PREMIUM") ?? false;
+
+  bool _isPlanoPremium(Plano? plano) {
+    final nome = plano?.nome?.toUpperCase() ?? '';
+    return nome.contains("PREMIUM");
+  }
 
   List<Map<String, dynamic>> get _mainMenus => [
         {
@@ -43,7 +50,7 @@ class _MainScreenState extends State<MainScreen> {
           "label": "Clientes",
           "widget": const ClienteListScreen()
         },
-        if (!isVendedor && isPlanoPremium)
+        if (!isVendedor && _isPlanoPremium(widget.plano))
           {
             "icon": Icons.supervisor_account,
             "label": "Vendedores",
@@ -56,7 +63,18 @@ class _MainScreenState extends State<MainScreen> {
         },
       ];
 
-  List<Map<String, dynamic>> get _sidebarOnlyMenus => [
+  List<Map<String, dynamic>> _buildSidebarOnlyMenus(
+      {required bool isVendedor}) {
+    final menus = <Map<String, dynamic>>[
+      {
+        "icon": Icons.summarize,
+        "label": "Resumo de Cobranças",
+        "widget": const ResumoCobrancasScreen()
+      },
+    ];
+
+    if (!isVendedor) {
+      menus.addAll([
         {
           "icon": Icons.summarize,
           "label": "Relatório de Parcelas",
@@ -67,38 +85,44 @@ class _MainScreenState extends State<MainScreen> {
           "label": "Localizar Parcelas",
           "widget": const ContasReceberSearchScreen()
         },
-      ];
+        {
+          "icon": Icons.swap_horiz,
+          "label": "Transferência entre vendedores",
+          "widget": const TransferenciaVendedoresScreen()
+        },
+        {
+          "icon": Icons.swap_vert,
+          "label": "Transferência entre caixas",
+          "widget": const TransferenciaCaixaScreen()
+        },
+      ]);
+    }
+
+    return menus;
+  }
 
   List<Map<String, dynamic>> get _allMenus =>
-      [..._mainMenus, ..._sidebarOnlyMenus];
+      [..._mainMenus, ..._buildSidebarOnlyMenus(isVendedor: isVendedor)];
 
   @override
   Widget build(BuildContext context) {
+    final empresaProvider = Provider.of<EmpresaProvider>(context);
+    final plano =
+        isVendedor ? null : (empresaProvider.empresa?.plano ?? widget.plano);
+    final isPlanoPremium = _isPlanoPremium(plano);
+
     final mainMenus = _mainMenus;
-    final allMenus = _allMenus;
+    final allMenus = _buildAllMenus(mainMenus, isVendedor);
     final atualIndex = _selectedIndex >= mainMenus.length ? 0 : _selectedIndex;
 
-    return isWeb
-        ? _buildWebScaffold(allMenus, atualIndex)
-        : _buildMobileScaffold(mainMenus, atualIndex, allMenus);
+    return _buildMobileScaffold(mainMenus, atualIndex, allMenus);
   }
 
+  List<Map<String, dynamic>> _buildAllMenus(
+          List<Map<String, dynamic>> mainMenus, bool isVendedor) =>
+      [...mainMenus, ..._buildSidebarOnlyMenus(isVendedor: isVendedor)];
+
   /// Sidebar para Web
-  Widget _buildWebScaffold(List<Map<String, dynamic>> menu, int index) {
-    return Scaffold(
-      body: Row(
-        children: [
-          _buildSidebar(menu),
-          Expanded(
-            child: Container(
-              color: Colors.grey.shade100,
-              child: menu[index]["widget"] as Widget,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   /// Scaffold para Mobile com Drawer lateral
   Widget _buildMobileScaffold(List<Map<String, dynamic>> mainMenus, int index,
