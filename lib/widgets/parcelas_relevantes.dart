@@ -18,6 +18,7 @@ class ParcelasResumoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 600;
+    final showScrollHint = parcelas.length > 3;
     return SizedBox(
       height: isMobile ? 250 : 390, // 🔹 Define um tamanho fixo para o card
       child: Card(
@@ -53,6 +54,32 @@ class ParcelasResumoCard extends StatelessWidget {
                           ),
               ),
             ),
+            if (showScrollHint)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(12),
+                    bottomRight: Radius.circular(12),
+                  ),
+                  border: Border(
+                    top: BorderSide(color: Colors.grey.shade200),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(Icons.swap_vert, size: 16, color: Colors.grey),
+                    SizedBox(width: 6),
+                    Text(
+                      "Arraste dentro do card para ver mais parcelas",
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),

@@ -12,6 +12,7 @@ import 'package:emprestimos_app/widgets/label_titulo.dart';
 import 'package:emprestimos_app/widgets/parcelas_relevantes.dart';
 import 'package:emprestimos_app/widgets/previsao_recebimento_horizontal.dart';
 import 'package:emprestimos_app/widgets/resumo_trasacoes.dart';
+import 'package:emprestimos_app/widgets/scroll_hint.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/theme.dart';
@@ -187,6 +188,8 @@ class _HomeVendedorScreenState extends State<HomeVendedorScreen> {
                       parcelas: emprestimoProvider.parcelas,
                       isLoading: false,
                     ),
+              const SizedBox(height: 8),
+              const ScrollHint(label: "Mais recursos abaixo"),
               const SizedBox(height: 20),
               // 🔹 Transações (agora aqui dentro, rolando junto)
               LabelTitulo(titulo: "📄 Transações"),

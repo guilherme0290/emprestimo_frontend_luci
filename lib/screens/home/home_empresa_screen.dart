@@ -11,6 +11,7 @@ import 'package:emprestimos_app/widgets/parcelas_relevantes.dart';
 import 'package:emprestimos_app/widgets/previsao_recebimento_horizontal.dart';
 import 'package:emprestimos_app/widgets/resumo_painel_widget.dart';
 import 'package:emprestimos_app/widgets/resumo_trasacoes.dart';
+import 'package:emprestimos_app/widgets/scroll_hint.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -173,6 +174,9 @@ class _HomeEmpresaScreenState extends State<HomeEmpresaScreen> {
                               );
                       },
                     ),
+                    const SizedBox(height: 12),
+                    const ScrollHint(label: "Mais recursos abaixo"),
+                    const SizedBox(height: 12),
                     LabelTitulo(titulo: "📊 Previsão de Recebimentos"),
                     const SizedBox(height: 12),
                     SizedBox(
