@@ -6,7 +6,7 @@ import 'package:emprestimos_app/core/storage_service.dart';
 
 class Api {
   static String urlProducao = "https://app.souzacomerciobr.com.br/api";
-  static String urlHomologacao = "http://192.168.100.114:8080/api";
+  static String urlHomologacao = "http://192.168.100.118:8080/api";
 
   static bool _interceptorAdicionado = false;
   static final Dio _dio = Dio(
