@@ -2,16 +2,24 @@ import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:emprestimos_app/core/theme/theme.dart';
 import 'package:emprestimos_app/core/data_utils.dart';
 import 'package:emprestimos_app/core/util.dart';
+import 'dart:io';
+
 import 'package:emprestimos_app/models/baixa_parcela_result.dart';
+import 'package:emprestimos_app/models/mensagem_manual.dart';
+import 'package:emprestimos_app/providers/mensagens_manuais_provider.dart';
+import 'package:emprestimos_app/services/relatorio_parcelas_pdf_service.dart';
 import 'package:emprestimos_app/screens/clientes/cliente_detail_screen.dart';
 import 'package:emprestimos_app/widgets/background_screens_widget.dart';
 import 'package:emprestimos_app/widgets/card_penhora_widget.dart';
 import 'package:emprestimos_app/widgets/custom_button.dart';
 import 'package:emprestimos_app/widgets/dialog_widget.dart';
 import 'package:emprestimos_app/widgets/edit_message_dialog.dart';
+import 'package:emprestimos_app/widgets/scroll_hint.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../models/emprestimo.dart';
 import '../../models/parcela.dart';
 import '../../providers/emprestimo_provider.dart';
@@ -32,19 +40,79 @@ class ContasReceberDetailScreen extends StatefulWidget {
       _ContasReceberDetailScreenState();
 }
 
-class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen> {
+class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen>
+    with SingleTickerProviderStateMixin {
   late List<bool> _selectedParcelas;
   ContasReceberDTO? _emprestimo;
+  Map<TipoMensagemManual, MensagemManual> _mensagensManuais = {};
+  late final AnimationController _swipeHintController;
+  late final Animation<double> _swipeHintOffset;
+  bool _showSwipeHint = true;
 
   @override
   void initState() {
     super.initState();
+    _swipeHintController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    );
+    _swipeHintOffset = Tween<double>(begin: 24, end: -24).animate(
+      CurvedAnimation(parent: _swipeHintController, curve: Curves.easeInOut),
+    );
+    _swipeHintController.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        setState(() => _showSwipeHint = false);
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_showSwipeHint) {
+        _swipeHintController.forward();
+      }
+    });
     if (widget.emprestimo != null) {
       _emprestimo = widget.emprestimo;
       _initializeParcelas();
     } else {
       _fetchContasReceber();
     }
+    _carregarMensagensManuais();
+  }
+
+  @override
+  void dispose() {
+    _swipeHintController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _carregarMensagensManuais() async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final provider =
+          Provider.of<MensagensManuaisProvider>(context, listen: false);
+      await provider.buscarMensagens();
+      if (!mounted) return;
+      setState(() {
+        _mensagensManuais = {
+          for (final msg in provider.mensagens) msg.tipo: msg
+        };
+      });
+    });
+  }
+
+  String _mensagemManualOuPadrao(
+      TipoMensagemManual tipo, String mensagemPadrao) {
+    final msg = _mensagensManuais[tipo];
+    if (msg == null || !msg.ativo || msg.conteudo.trim().isEmpty) {
+      return mensagemPadrao;
+    }
+    return msg.conteudo;
+  }
+
+  String _aplicarTagsMensagem(String template, Map<String, String> variaveis) {
+    String resultado = template;
+    variaveis.forEach((key, value) {
+      resultado = resultado.replaceAll("{{${key}}}", value);
+    });
+    return resultado;
   }
 
   Future<void> _fetchContasReceber() async {
@@ -145,7 +213,7 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen> {
     final String dataVencimento =
         FormatData.formatarDataCompleta(parcela.dataVencimento);
 
-    String mensagemPadrao = """
+    final String mensagemPadraoFallback = """
 Olá $nomeCliente,
 
 Estamos entrando em contato para lembrar que sua parcela nº $numeroParcela no valor de $valorParcela venceu em $dataVencimento.
@@ -154,6 +222,16 @@ Por favor, nos informe sobre o pagamento ou entre em contato para mais informaç
 
 Aguardamos seu retorno!
 """;
+    final String totalContasReceber = Util.formatarMoeda(_emprestimo!.valor);
+    final String mensagemBase = _mensagemManualOuPadrao(
+        TipoMensagemManual.cobrancaAtraso, mensagemPadraoFallback);
+    final String mensagemPadrao = _aplicarTagsMensagem(mensagemBase, {
+      "nome": nomeCliente,
+      "numeroParcela": numeroParcela,
+      "valorParcela": valorParcela,
+      "totalContasReceber": totalContasReceber,
+      "dataVencimento": dataVencimento,
+    });
 
     if (telefoneCliente.isEmpty) {
       MyAwesomeDialog(
@@ -197,13 +275,24 @@ Aguardamos seu retorno!
       return;
     }
 
-    final String mensagemPadrao = """
+    final String mensagemPadraoFallback = """
 Olá $nomeCliente,
 
 Recebemos o pagamento da parcela nº $numeroParcela no valor de $valorParcela em $dataPagamentoFormatada.
 
 Obrigado!
 """;
+    final String totalContasReceber =
+        Util.formatarMoeda(_emprestimo?.valor ?? 0);
+    final String mensagemBase = _mensagemManualOuPadrao(
+        TipoMensagemManual.baixaParcela, mensagemPadraoFallback);
+    final String mensagemPadrao = _aplicarTagsMensagem(mensagemBase, {
+      "nome": nomeCliente,
+      "numeroParcela": numeroParcela,
+      "valorParcela": valorParcela,
+      "totalContasReceber": totalContasReceber,
+      "dataPagamento": dataPagamentoFormatada,
+    });
 
     final mensagemController = TextEditingController(text: mensagemPadrao);
 
@@ -310,6 +399,65 @@ Obrigado!
     );
   }
 
+  Future<void> _abrirRelatorioParcelas() async {
+    if (_emprestimo == null) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final pdfFile = await RelatorioParcelasPdfService.salvarPdf(_emprestimo!);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      _mostrarAcoesRelatorio(pdfFile);
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Erro ao gerar relatório em PDF.")),
+      );
+    }
+  }
+
+  void _mostrarAcoesRelatorio(File pdfFile) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.print),
+                title: const Text("Imprimir / visualizar PDF"),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final bytes = await pdfFile.readAsBytes();
+                  await Printing.layoutPdf(onLayout: (_) async => bytes);
+                },
+              ),
+              ListTile(
+                leading: const Icon(FontAwesomeIcons.whatsapp),
+                title: const Text("Enviar no WhatsApp"),
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  await Share.shareXFiles(
+                    [XFile(pdfFile.path)],
+                    text:
+                        "Relatório de parcelas do contrato #${_emprestimo!.id}",
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _confirmarExclusaoContrato() {
     MyAwesomeDialog(
       dialogType: DialogType.warning,
@@ -359,6 +507,8 @@ Obrigado!
 
   Widget _buildListaParcelas(ContasReceberDTO emp) {
     final parcelas = emp.parcelas;
+    final firstSwipeIndex =
+        parcelas.indexWhere((parcela) => parcela.status != "PAGA");
 
     return ListView.builder(
       shrinkWrap: true,
@@ -368,7 +518,7 @@ Obrigado!
         final parc = parcelas[index];
         final isSelected = _selectedParcelas[index];
 
-        return Card(
+        final card = Card(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 3,
@@ -518,7 +668,112 @@ Obrigado!
             ),
           ),
         );
+
+        if (parc.status == "PAGA") {
+          return card;
+        }
+
+        final dismissible = Dismissible(
+          key: ValueKey('parcela_${parc.id}'),
+          direction: DismissDirection.horizontal,
+          background: _buildSwipeBaixaBackground(Alignment.centerLeft),
+          secondaryBackground:
+              _buildSwipeBaixaBackground(Alignment.centerRight),
+          confirmDismiss: (_) async {
+            await _abrirDialogBaixaParaParcela(index);
+            return false;
+          },
+          child: card,
+        );
+
+        if (_showSwipeHint && index == firstSwipeIndex) {
+          return Stack(
+            children: [
+              dismissible,
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: AnimatedBuilder(
+                    animation: _swipeHintOffset,
+                    builder: (context, child) {
+                      return Transform.translate(
+                        offset: Offset(_swipeHintOffset.value, 0),
+                        child: child,
+                      );
+                    },
+                    child: _buildSwipeHintOverlay(),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return dismissible;
       },
+    );
+  }
+
+  Widget _buildSwipeBaixaBackground(Alignment alignment) {
+    final isLeft = alignment == Alignment.centerLeft;
+    return Container(
+      alignment: alignment,
+      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.green.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isLeft) ...[
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            const Text(
+              "Baixar parcela",
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+          ] else ...[
+            const Text(
+              "Baixar parcela",
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.check_circle, color: Colors.white),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwipeHintOverlay() {
+    return Container(
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 24),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.25),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.swipe, color: Colors.white, size: 16),
+            SizedBox(width: 6),
+            Text(
+              "Deslize",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -620,6 +875,16 @@ Obrigado!
     tratarRetornoBaixa(resultado, parcelasSelecionadas);
   }
 
+  Future<void> _abrirDialogBaixaParaParcela(int index) async {
+    if (_emprestimo == null) return;
+    setState(() {
+      for (int i = 0; i < _selectedParcelas.length; i++) {
+        _selectedParcelas[i] = i == index;
+      }
+    });
+    _abrirDialogBaixa();
+  }
+
   void tratarRetornoBaixa(BaixaParcelaResult? resultado,
       List<ParcelaDTO> parcelasSelecionadas) async {
     final provider = Provider.of<ContasReceberProvider>(context, listen: false);
@@ -671,20 +936,6 @@ Obrigado!
     }
   }
 
-  Widget _buildInfoRowScroll(List<Widget> children) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: children
-            .map((child) => Padding(
-                  padding: const EdgeInsets.only(right: 20),
-                  child: child,
-                ))
-            .toList(),
-      ),
-    );
-  }
-
   Widget _buildInfoItem(IconData icon, String label, String value) {
     return SizedBox(
       width: 130, // aumente conforme o espaço disponível
@@ -704,6 +955,34 @@ Obrigado!
                   fontSize: 16,
                   fontWeight: FontWeight.bold)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInfoAction(
+      IconData icon, String label, String value, VoidCallback onTap) {
+    return SizedBox(
+      width: 130,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 28),
+            const SizedBox(height: 6),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, fontSize: 14)),
+            const SizedBox(height: 4),
+            Text(value,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
     );
   }
@@ -778,8 +1057,6 @@ Obrigado!
               const SizedBox(height: 8),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final isWide = constraints.maxWidth > 600;
-
                   final itens = [
                     _buildInfoItem(Icons.monetization_on, "Vl. venda",
                         Util.formatarMoeda(valorContasReceber)),
@@ -797,35 +1074,67 @@ Obrigado!
                         Icons.info, "Status", emp.statusContasReceber),
                     _buildInfoItem(
                         Icons.calendar_today, "Tipo", emp.tipoPagamento),
-                    if (emp.vendedorNome != null)
+                    _buildInfoAction(
+                      Icons.picture_as_pdf,
+                      "Extrato",
+                      "PDF",
+                      _abrirRelatorioParcelas,
+                    ),
+                    if (emp.vendedorNome!.isNotEmpty)
                       _buildInfoItem(Icons.person, "Vendedor",
                           Util.getPrimeiroNome(emp.vendedorNome!)),
                   ];
 
-                  if (isWide) {
-                    return Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 920),
-                        child: Wrap(
-                          spacing: 24,
-                          runSpacing: 16,
-                          alignment: WrapAlignment.center,
-                          children: itens,
-                        ),
-                      ),
-                    );
+                  const rows = 3;
+                  final columns = (itens.length / rows).ceil();
+                  final colunas = List.generate(columns, (_) => <Widget>[]);
+                  for (int col = 0; col < columns; col++) {
+                    final coluna = <Widget>[];
+                    for (int row = 0; row < rows; row++) {
+                      final index = col * rows + row;
+                      if (index < itens.length) {
+                        coluna.add(itens[index]);
+                      }
+                    }
+                    colunas[col] = coluna;
                   }
 
-                  // mobile (scroll horizontal por linha)
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Column(
-                      children: [
-                        _buildInfoRowScroll(itens.sublist(0, 3)),
-                        _buildInfoRowScroll(itens.sublist(3, 6)),
-                        _buildInfoRowScroll(itens.sublist(6)),
+                  final hasScrollHint = colunas.length > 3;
+
+                  return Column(
+                    children: [
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: colunas
+                              .map(
+                                (coluna) => Padding(
+                                  padding: const EdgeInsets.only(right: 20),
+                                  child: Column(
+                                    children: coluna
+                                        .map((item) => Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 8),
+                                              child: item,
+                                            ))
+                                        .toList(),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                      if (hasScrollHint) ...[
+                        const SizedBox(height: 6),
+                        const ScrollHint(
+                          label: "Arraste para o lado",
+                          axis: Axis.horizontal,
+                          color: Colors.white70,
+                          icon: Icons.swipe,
+                        ),
                       ],
-                    ),
+                    ],
                   );
                 },
               ),

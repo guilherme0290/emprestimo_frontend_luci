@@ -76,6 +76,7 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
   final FocusNode _focusNode = FocusNode();
   bool _hasFocus = false;
   bool _isEmpresa = false;
+  bool _statusAtivo = true;
 
   String? ufSelecionada;
   List<Cidade> cidades = [];
@@ -106,6 +107,7 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
       complementoController.text = widget.cliente?.complemento ?? "";
       numeroController.text = widget.cliente?.numero ?? "";
       _cidadeSelecionada = widget.cliente?.cidadeId;
+      _statusAtivo = (widget.cliente?.status ?? "ATIVO") == "ATIVO";
 
       if (_cidadeSelecionada != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -260,6 +262,7 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
       numero: numeroController.text,
       cidadeId: _cidadeSelecionada ?? cidadeSelecionada?.id,
       vendedorId: vendedorId,
+      status: _statusAtivo ? "ATIVO" : "INATIVO",
     );
 
     if (widget.cliente == null) {
@@ -287,6 +290,7 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
       if (clienteAtualizado != null) {
         setState(() {
           widget.cliente = clienteAtualizado;
+          _statusAtivo = (clienteAtualizado.status ?? "ATIVO") == "ATIVO";
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -366,6 +370,18 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
               child: Column(
                 children: [
                   _buildSectionTitle("Informações Pessoais"),
+                  SwitchListTile(
+                    title: const Text("Status do Cliente"),
+                    subtitle: Text(_statusAtivo ? "Ativo" : "Inativo"),
+                    value: _statusAtivo,
+                    onChanged: (novoStatus) {
+                      setState(() {
+                        _statusAtivo = novoStatus;
+                      });
+                    },
+                    activeColor: Colors.green,
+                    inactiveThumbColor: Colors.red,
+                  ),
                   InputCustomizado(
                       controller: nomeController,
                       labelText: "Nome Completo",

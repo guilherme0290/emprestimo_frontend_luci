@@ -65,6 +65,10 @@ dependencies:
   package_info_plus: ^8.3.0
   local_auth: ^2.3.0
   rive_common: ^0.4.13
+  pdf: ^3.10.8
+  printing: ^5.13.0
+  path_provider: ^2.1.4
+  share_plus: ^10.1.2
   
   
     

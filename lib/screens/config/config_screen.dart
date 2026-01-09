@@ -3,6 +3,7 @@ import 'package:emprestimos_app/screens/auth/alterar_senha_screen.dart';
 import 'package:emprestimos_app/screens/auth/login_screen.dart';
 import 'package:emprestimos_app/screens/config/caixas/caixa_list_screen.dart';
 import 'package:emprestimos_app/screens/config/mensagensAutomaticas/mensagens_cobranca.dart';
+import 'package:emprestimos_app/screens/config/mensagensAutomaticas/mensagens_manuais.dart';
 import 'package:emprestimos_app/screens/config/parametros/solicitacoes_parametro_screen.dart';
 import 'package:emprestimos_app/screens/config/perfil/perfil_screen.dart';
 import 'package:emprestimos_app/screens/parametros/parametros_empresa.dart';
@@ -110,6 +111,19 @@ class _ConfigScreenState extends State<ConfigScreen> {
                           context,
                           MaterialPageRoute(
                               builder: (_) => const MensagensCobrancaScreen()),
+                        );
+                      },
+                    ),
+                  if (_isEmpresa)
+                    _buildCardTile(
+                      icon: Icons.mark_email_read,
+                      title: "Mensagens Manuais",
+                      color: AppTheme.primaryColor,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const MensagensManuaisScreen()),
                         );
                       },
                     ),

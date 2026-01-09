@@ -8,6 +8,7 @@ import 'package:emprestimos_app/providers/auth_provider.dart';
 import 'package:emprestimos_app/providers/emprestimo_provider.dart';
 import 'package:emprestimos_app/providers/parametros_provider.dart';
 import 'package:emprestimos_app/screens/clientes/cliente_create_screen.dart';
+import 'package:emprestimos_app/screens/clientes/cliente_delete_screen.dart';
 import 'package:emprestimos_app/screens/emprestimos/emprestimo_create_step1.dart';
 import 'package:emprestimos_app/screens/score/score_list_screen.dart';
 import 'package:emprestimos_app/widgets/custom_floating_action_button.dart';
@@ -277,6 +278,19 @@ class _DetalhesClientePageState extends State<DetalhesContasReceber> {
     }
   }
 
+  Future<void> _irParaExcluirCliente(Cliente cliente) async {
+    final excluido = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ClienteDeleteScreen(cliente: cliente),
+      ),
+    );
+
+    if (excluido == true && mounted) {
+      Navigator.pop(context, true);
+    }
+  }
+
   Future<void> abrirNavegacaoGoogleMaps(String endereco) async {
     final url = Uri.encodeFull(
         'https://www.google.com/maps/dir/?api=1&destination=$endereco');
@@ -306,7 +320,6 @@ class _DetalhesClientePageState extends State<DetalhesContasReceber> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back,
@@ -323,6 +336,12 @@ class _DetalhesClientePageState extends State<DetalhesContasReceber> {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_forever,
+                      color: Colors.white, size: 28),
+                  tooltip: "Excluir cliente",
+                  onPressed: () => _irParaExcluirCliente(cliente),
                 ),
                 IconButton(
                   icon: const Icon(Icons.person_search,

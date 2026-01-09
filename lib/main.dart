@@ -8,6 +8,7 @@ import 'package:emprestimos_app/providers/vendedor_provider.dart';
 import 'package:emprestimos_app/providers/compra_provider.dart';
 import 'package:emprestimos_app/providers/emprestimo_provider.dart';
 import 'package:emprestimos_app/providers/mensagens_cobranca_provider.dart';
+import 'package:emprestimos_app/providers/mensagens_manuais_provider.dart';
 import 'package:emprestimos_app/providers/notificacoes_provider.dart';
 import 'package:emprestimos_app/providers/parametros_provider.dart';
 import 'package:emprestimos_app/providers/planos_provider.dart';
@@ -114,6 +115,12 @@ class MyApp extends StatelessWidget {
               MensagemCobrancaProvider(context.read<AuthProvider>()),
           update: (context, authProvider, previous) =>
               MensagemCobrancaProvider(authProvider),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, MensagensManuaisProvider>(
+          create: (context) =>
+              MensagensManuaisProvider(context.read<AuthProvider>()),
+          update: (context, authProvider, previous) =>
+              MensagensManuaisProvider(authProvider),
         ),
         ChangeNotifierProxyProvider<EmpresaProvider, CompraProvider>(
           create: (_) => CompraProvider(),

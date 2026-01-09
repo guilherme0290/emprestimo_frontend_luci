@@ -39,6 +39,12 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       primaryColor: primaryColor,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: primaryColor,
+        background: backgroundColor,
+        surface: Colors.white,
+        surfaceTint: Colors.white,
+      ),
       scaffoldBackgroundColor: backgroundColor,
       fontFamily: 'Poppins',
       visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -111,6 +117,16 @@ class AppTheme {
           color: AppTheme.accentColor,
           fontWeight: FontWeight.bold,
         ),
+      ),
+
+      dialogTheme: const DialogThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+      ),
+
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
       ),
 
       // Estilo de Cards modernos com gradiente

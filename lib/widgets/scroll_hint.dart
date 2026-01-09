@@ -2,8 +2,17 @@ import 'package:flutter/material.dart';
 
 class ScrollHint extends StatefulWidget {
   final String label;
+  final Axis axis;
+  final Color color;
+  final IconData? icon;
 
-  const ScrollHint({super.key, required this.label});
+  const ScrollHint({
+    super.key,
+    required this.label,
+    this.axis = Axis.vertical,
+    this.color = Colors.grey,
+    this.icon,
+  });
 
   @override
   State<ScrollHint> createState() => _ScrollHintState();
@@ -29,24 +38,29 @@ class _ScrollHintState extends State<ScrollHint>
 
   @override
   Widget build(BuildContext context) {
+    final icon = widget.icon ??
+        (widget.axis == Axis.vertical
+            ? Icons.keyboard_arrow_down
+            : Icons.swipe);
     return Center(
       child: AnimatedBuilder(
         animation: _offset,
         builder: (context, child) {
           return Transform.translate(
-            offset: Offset(0, _offset.value),
+            offset: widget.axis == Axis.vertical
+                ? Offset(0, _offset.value)
+                : Offset(_offset.value, 0),
             child: child,
           );
         },
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.keyboard_arrow_down,
-                size: 20, color: Colors.grey),
+            Icon(icon, size: 20, color: widget.color),
             const SizedBox(width: 6),
             Text(
               widget.label,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: widget.color),
             ),
           ],
         ),

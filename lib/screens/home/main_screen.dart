@@ -7,8 +7,7 @@ import 'package:emprestimos_app/screens/config/config_screen.dart';
 import 'package:emprestimos_app/core/theme/theme.dart';
 import 'package:emprestimos_app/screens/home/home_empresa_screen.dart';
 import 'package:emprestimos_app/screens/home/home_vendedor_screen.dart';
-import 'package:emprestimos_app/screens/transferencia/transferencia_caixa_screen.dart';
-import 'package:emprestimos_app/screens/transferencia/transferencia_vendedores_screen.dart';
+import 'package:emprestimos_app/screens/transferencia/transferencias_menu_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -37,102 +36,82 @@ class _MainScreenState extends State<MainScreen> {
     return nome.contains("PREMIUM");
   }
 
-  List<Map<String, dynamic>> get _mainMenus => [
+  List<Map<String, dynamic>> _buildMainMenus(
+      {required bool isVendedor, required Plano? plano}) {
+    final isPlanoPremium = _isPlanoPremium(plano);
+    return [
+      {
+        "icon": Icons.home,
+        "label": "Home",
+        "widget":
+            isVendedor ? const HomeVendedorScreen() : const HomeEmpresaScreen()
+      },
+      {
+        "icon": Icons.people,
+        "label": "Clientes",
+        "widget": const ClienteListScreen()
+      },
+      if (!isVendedor && isPlanoPremium)
         {
-          "icon": Icons.home,
-          "label": "Home",
-          "widget": isVendedor
-              ? const HomeVendedorScreen()
-              : const HomeEmpresaScreen()
+          "icon": Icons.supervisor_account,
+          "label": "Vendedores",
+          "widget": const VendedorListScreen()
         },
-        {
-          "icon": Icons.people,
-          "label": "Clientes",
-          "widget": const ClienteListScreen()
-        },
-        if (!isVendedor && _isPlanoPremium(widget.plano))
-          {
-            "icon": Icons.supervisor_account,
-            "label": "Vendedores",
-            "widget": const VendedorListScreen()
-          },
-        {
-          "icon": Icons.settings,
-          "label": "Config.",
-          "widget": const ConfigScreen()
-        },
-      ];
+      {
+        "icon": Icons.settings,
+        "label": "Config.",
+        "widget": const ConfigScreen()
+      },
+    ];
+  }
 
   List<Map<String, dynamic>> _buildSidebarOnlyMenus(
       {required bool isVendedor}) {
     final menus = <Map<String, dynamic>>[
       {
         "icon": Icons.summarize,
-        "label": "Resumo de Cobranças",
+        "label": "Relatório de Parcelas",
         "widget": const ResumoCobrancasScreen()
       },
-    ];
-
-    if (!isVendedor) {
-      menus.addAll([
-        {
-          "icon": Icons.summarize,
-          "label": "Relatório de Parcelas",
-          "widget": const ResumoCobrancasScreen()
-        },
-        {
-          "icon": Icons.search,
-          "label": "Localizar Parcelas",
-          "widget": const ContasReceberSearchScreen()
-        },
+      {
+        "icon": Icons.search,
+        "label": "Localizar Parcelas",
+        "widget": const ContasReceberSearchScreen()
+      },
+      if (!isVendedor)
         {
           "icon": Icons.swap_horiz,
-          "label": "Transferência entre vendedores",
-          "widget": const TransferenciaVendedoresScreen()
+          "label": "Transferências",
+          "widget": const TransferenciasMenuScreen()
         },
-        {
-          "icon": Icons.swap_vert,
-          "label": "Transferência entre caixas",
-          "widget": const TransferenciaCaixaScreen()
-        },
-      ]);
-    }
+    ];
 
     return menus;
   }
-
-  List<Map<String, dynamic>> get _allMenus =>
-      [..._mainMenus, ..._buildSidebarOnlyMenus(isVendedor: isVendedor)];
 
   @override
   Widget build(BuildContext context) {
     final empresaProvider = Provider.of<EmpresaProvider>(context);
     final plano =
         isVendedor ? null : (empresaProvider.empresa?.plano ?? widget.plano);
-    final isPlanoPremium = _isPlanoPremium(plano);
-
-    final mainMenus = _mainMenus;
-    final allMenus = _buildAllMenus(mainMenus, isVendedor);
+    final mainMenus = _buildMainMenus(isVendedor: isVendedor, plano: plano);
+    final sidebarMenus = _buildSidebarOnlyMenus(isVendedor: isVendedor);
     final atualIndex = _selectedIndex >= mainMenus.length ? 0 : _selectedIndex;
 
-    return _buildMobileScaffold(mainMenus, atualIndex, allMenus);
+    return _buildMobileScaffold(mainMenus, atualIndex, sidebarMenus);
   }
-
-  List<Map<String, dynamic>> _buildAllMenus(
-          List<Map<String, dynamic>> mainMenus, bool isVendedor) =>
-      [...mainMenus, ..._buildSidebarOnlyMenus(isVendedor: isVendedor)];
 
   /// Sidebar para Web
 
   /// Scaffold para Mobile com Drawer lateral
   Widget _buildMobileScaffold(List<Map<String, dynamic>> mainMenus, int index,
-      List<Map<String, dynamic>> allMenus) {
+      List<Map<String, dynamic>> sidebarMenus) {
     return Scaffold(
       // appBar: AppBar(
       //   title: Text(mainMenus[index]['label']),
       // ),
       drawer: Drawer(
-        child: _buildSidebar(allMenus, isDrawer: true),
+        child: _buildSidebar(sidebarMenus, mainMenus, isDrawer: true),
       ),
       body: mainMenus[index]["widget"] as Widget,
       bottomNavigationBar: BottomNavigationBar(
@@ -158,7 +137,8 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   /// Sidebar (Drawer no Mobile ou lateral no Web)
-  Widget _buildSidebar(List<Map<String, dynamic>> menu,
+  Widget _buildSidebar(
+      List<Map<String, dynamic>> menu, List<Map<String, dynamic>> mainMenus,
       {bool isDrawer = false}) {
     final double expandedWidth = 220;
     final double collapsedWidth = 70;
@@ -200,7 +180,7 @@ class _MainScreenState extends State<MainScreen> {
               itemBuilder: (context, i) {
                 final item = menu[i];
                 final isSelected =
-                    _mainMenus.indexWhere((m) => m['label'] == item['label']) ==
+                    mainMenus.indexWhere((m) => m['label'] == item['label']) ==
                         _selectedIndex;
 
                 return ListTile(
@@ -227,7 +207,7 @@ class _MainScreenState extends State<MainScreen> {
                   onTap: () {
                     Navigator.pop(context); // fecha o Drawer se for mobile
 
-                    final indexInMainMenu = _mainMenus.indexWhere(
+                    final indexInMainMenu = mainMenus.indexWhere(
                         (menuItem) => menuItem['label'] == item['label']);
 
                     if (indexInMainMenu != -1) {
