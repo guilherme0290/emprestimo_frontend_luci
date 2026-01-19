@@ -6,6 +6,8 @@ import 'dart:io';
 
 import 'package:emprestimos_app/models/baixa_parcela_result.dart';
 import 'package:emprestimos_app/models/mensagem_manual.dart';
+import 'package:emprestimos_app/core/role.dart';
+import 'package:emprestimos_app/providers/auth_provider.dart';
 import 'package:emprestimos_app/providers/mensagens_manuais_provider.dart';
 import 'package:emprestimos_app/services/relatorio_parcelas_pdf_service.dart';
 import 'package:emprestimos_app/screens/clientes/cliente_detail_screen.dart';
@@ -15,6 +17,7 @@ import 'package:emprestimos_app/widgets/custom_button.dart';
 import 'package:emprestimos_app/widgets/dialog_widget.dart';
 import 'package:emprestimos_app/widgets/edit_message_dialog.dart';
 import 'package:emprestimos_app/widgets/scroll_hint.dart';
+import 'package:emprestimos_app/core/mensagem_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:printing/printing.dart';
@@ -108,11 +111,7 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen>
   }
 
   String _aplicarTagsMensagem(String template, Map<String, String> variaveis) {
-    String resultado = template;
-    variaveis.forEach((key, value) {
-      resultado = resultado.replaceAll("{{${key}}}", value);
-    });
-    return resultado;
+    return MensagemUtils.aplicarTags(template, variaveis);
   }
 
   Future<void> _fetchContasReceber() async {
@@ -212,6 +211,8 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen>
     final String valorParcela = Util.formatarMoeda(parcela.valor);
     final String dataVencimento =
         FormatData.formatarDataCompleta(parcela.dataVencimento);
+    final String dataVencimentoCurta =
+        FormatData.formatarData(parcela.dataVencimento);
 
     final String mensagemPadraoFallback = """
 Olá $nomeCliente,
@@ -227,10 +228,12 @@ Aguardamos seu retorno!
         TipoMensagemManual.cobrancaAtraso, mensagemPadraoFallback);
     final String mensagemPadrao = _aplicarTagsMensagem(mensagemBase, {
       "nome": nomeCliente,
-      "numeroParcela": numeroParcela,
-      "valorParcela": valorParcela,
-      "totalContasReceber": totalContasReceber,
-      "dataVencimento": dataVencimento,
+      "numero_parcela": numeroParcela,
+      "valor_parcela": valorParcela,
+      "valor_total": totalContasReceber,
+      "vencimento": dataVencimentoCurta,
+      "vencimento_extenso": dataVencimento,
+      "saudacao": MensagemUtils.obterSaudacao(),
     });
 
     if (telefoneCliente.isEmpty) {
@@ -253,16 +256,32 @@ Aguardamos seu retorno!
         telefoneCliente: telefoneCliente);
   }
 
-  void _abrirWhatsappParcelaPaga(ParcelaDTO parcela) {
+  String _formatarDataPagamentoParcelas(List<ParcelaDTO> parcelas) {
+    final datas =
+        parcelas.map((p) => p.dataPagamento).whereType<String>().toSet();
+    if (datas.length == 1) {
+      return FormatData.formatarDataHora(datas.first);
+    }
+    return "hoje";
+  }
+
+  String _formatarNumerosParcelas(List<ParcelaDTO> parcelas) {
+    final numeros =
+        parcelas.map((p) => p.numeroParcela).whereType<int>().toList()..sort();
+    if (numeros.isEmpty) return "";
+    return numeros.join(", ");
+  }
+
+  void _abrirWhatsappParcelasPagas(List<ParcelaDTO> parcelas) {
+    if (parcelas.isEmpty) return;
     final String nomeCliente =
         _emprestimo?.cliente.nome ?? "Cliente Desconhecido";
     final String telefoneCliente = _emprestimo?.cliente.telefone ?? "";
-    final String numeroParcela = parcela.numeroParcela.toString();
-    final String valorParcela = Util.formatarMoeda(parcela.valor);
-    final String? dataPagamento = parcela.dataPagamento;
-    final String dataPagamentoFormatada = dataPagamento != null
-        ? FormatData.formatarDataHora(dataPagamento)
-        : "hoje";
+    final String numeroParcela = _formatarNumerosParcelas(parcelas);
+    final double valorTotal = parcelas.fold(0, (total, p) => total + p.valor);
+    final String valorParcela = Util.formatarMoeda(valorTotal);
+    final String dataPagamentoFormatada =
+        _formatarDataPagamentoParcelas(parcelas);
 
     if (telefoneCliente.isEmpty) {
       MyAwesomeDialog(
@@ -275,7 +294,16 @@ Aguardamos seu retorno!
       return;
     }
 
-    final String mensagemPadraoFallback = """
+    final bool variasParcelas = parcelas.length > 1;
+    final String mensagemPadraoFallback = variasParcelas
+        ? """
+Olá $nomeCliente,
+
+Recebemos o pagamento das parcelas nº $numeroParcela no valor total de $valorParcela em $dataPagamentoFormatada.
+
+Obrigado!
+"""
+        : """
 Olá $nomeCliente,
 
 Recebemos o pagamento da parcela nº $numeroParcela no valor de $valorParcela em $dataPagamentoFormatada.
@@ -288,10 +316,11 @@ Obrigado!
         TipoMensagemManual.baixaParcela, mensagemPadraoFallback);
     final String mensagemPadrao = _aplicarTagsMensagem(mensagemBase, {
       "nome": nomeCliente,
-      "numeroParcela": numeroParcela,
-      "valorParcela": valorParcela,
-      "totalContasReceber": totalContasReceber,
-      "dataPagamento": dataPagamentoFormatada,
+      "numero_parcela": numeroParcela,
+      "valor_parcela": valorParcela,
+      "valor_total": totalContasReceber,
+      "data_pagamento": dataPagamentoFormatada,
+      "saudacao": MensagemUtils.obterSaudacao(),
     });
 
     final mensagemController = TextEditingController(text: mensagemPadrao);
@@ -302,21 +331,29 @@ Obrigado!
         telefoneCliente: telefoneCliente);
   }
 
-  ParcelaDTO? _buscarParcelaAtualizada(
+  List<ParcelaDTO> _buscarParcelasAtualizadas(
     ContasReceberDTO emprestimoAtualizado,
     List<ParcelaDTO> parcelasSelecionadas,
   ) {
-    if (parcelasSelecionadas.isEmpty) return null;
-    final parcelaId = parcelasSelecionadas.first.id;
-    for (final parcela in emprestimoAtualizado.parcelas) {
-      if (parcela.id == parcelaId) {
-        return parcela;
+    if (parcelasSelecionadas.isEmpty) return [];
+    final parcelasAtualizadas = <ParcelaDTO>[];
+    final parcelasPorId = {
+      for (final parcela in emprestimoAtualizado.parcelas) parcela.id: parcela
+    };
+    for (final parcela in parcelasSelecionadas) {
+      final atualizada = parcelasPorId[parcela.id];
+      if (atualizada != null) {
+        parcelasAtualizadas.add(atualizada);
       }
     }
-    return null;
+    return parcelasAtualizadas;
   }
 
   PreferredSizeWidget _buildAppBar() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final bool isEmpresa = authProvider.role == Role.EMPRESA;
+    final bool podeExcluir =
+        isEmpresa || _emprestimo!.statusContasReceber != 'QUITADO';
     return AppBar(
       backgroundColor: AppTheme.primaryColor,
       elevation: 0,
@@ -377,7 +414,7 @@ Obrigado!
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(width: 8),
-                _emprestimo!.statusContasReceber != 'QUITADO'
+                podeExcluir
                     ? GestureDetector(
                         onTap: _confirmarExclusaoContrato,
                         child: Container(
@@ -916,13 +953,11 @@ Obrigado!
           _selectedParcelas =
               List.generate(_emprestimo!.parcelas.length, (index) => false);
         });
-        final parcelaAtualizada = _buscarParcelaAtualizada(
+        final parcelasAtualizadas = _buscarParcelasAtualizadas(
           emprestimoAtualizado,
           parcelasSelecionadasSnapshot,
         );
-        if (parcelaAtualizada != null) {
-          _abrirWhatsappParcelaPaga(parcelaAtualizada);
-        }
+        _abrirWhatsappParcelasPagas(parcelasAtualizadas);
       }
     } else {
       MyAwesomeDialog(

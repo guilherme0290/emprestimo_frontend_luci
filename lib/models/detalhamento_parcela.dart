@@ -5,10 +5,10 @@ class DetalheParcelaDTO {
   final DateTime vencimento;
   final double valorParcela;
   final int numeroParcela;
-  final String status; // ex.: "PENDENTE", "PAGA"
-  final DateTime? dataPagamento; // pode ser null
-  final String? vendedorNome; // pode ser null
-  final String? caixaDescricao; // pode ser null
+  final String status;
+  final DateTime? dataPagamento;
+  final String? vendedorNome;
+  final String? caixaDescricao;
   final int contasReceberId;
 
   const DetalheParcelaDTO({
@@ -25,7 +25,6 @@ class DetalheParcelaDTO {
     required this.contasReceberId,
   });
 
-  /// Cria a partir de um JSON (Map).
   factory DetalheParcelaDTO.fromJson(Map<String, dynamic> json) {
     return DetalheParcelaDTO(
       parcelaId: json['parcelaId'] as int,

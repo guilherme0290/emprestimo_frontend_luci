@@ -6,6 +6,12 @@
 - `test/` contains Flutter tests (currently `test/widget_test.dart`).
 - `android/`, `ios/`, and `web/` contain platform-specific integration and build files.
 
+## Frontend Project Map
+- Entry point: `lib/main.dart`
+- App layers: `lib/core/` (config/theme), `lib/models/`, `lib/providers/`, `lib/services/`, `lib/widgets/`
+- Feature screens: `lib/screens/` with modules like `auth/`, `home/`, `clientes/`, `emprestimos/`, `parcelas/`, `cobranca/`, `transferencia/`, `vendedores/`, `planos/`, `relatorio/`, `score/`, `notificacoes/`, `config/`, `parametros/`, `localizar_parcela/`
+- Assets: `assets/` (images/fonts)
+
 ## Build, Test, and Development Commands
 - `flutter pub get` to install dependencies.
 - `flutter run` to run the app on a connected device or emulator.

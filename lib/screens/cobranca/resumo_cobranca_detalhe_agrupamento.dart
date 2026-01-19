@@ -23,15 +23,21 @@ class DetalhamentoAgrupamentoScreen extends StatefulWidget {
 class _DetalhamentoAgrupamentoScreenState
     extends State<DetalhamentoAgrupamentoScreen> {
   GroupByOption _groupBy = GroupByOption.none;
-
-  String search = '';
   String _searchText = '';
-
   _SortBy _sortBy = _SortBy.vencimentoAsc;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _recarregarDetalhes() async {
+    final empresaId =
+        Provider.of<EmpresaProvider>(context, listen: false).empresa!.id!;
+    await Provider.of<ContasReceberProvider>(context, listen: false)
+        .buscarDetalhesGeralUsandoUltimoFiltro(empresaId: empresaId);
   }
 
   @override
@@ -46,14 +52,8 @@ class _DetalhamentoAgrupamentoScreenState
         itens.any((d) => (d.vendedorNome ?? '').trim().isNotEmpty);
     final isWide = MediaQuery.of(context).size.width > 980;
 
-    // estados locais existentes
-    final groupBy = _groupBy;
-    final sortBy = _sortBy;
-
-    // ⚠️ corrigir: use _searchText (o que é atualizado pelo TextField)
     final query = _searchText.trim().toLowerCase();
 
-    // filtra por busca
     final itensFiltrados = itens.where((d) {
       if (query.isEmpty) return true;
       return d.clienteNome.toLowerCase().contains(query) ||
@@ -62,9 +62,8 @@ class _DetalhamentoAgrupamentoScreenState
           (d.vendedorNome ?? '').toLowerCase().contains(query);
     }).toList();
 
-    // ordena
     itensFiltrados.sort((a, b) {
-      switch (sortBy) {
+      switch (_sortBy) {
         case _SortBy.vencimentoAsc:
           return a.vencimento.compareTo(b.vencimento);
         case _SortBy.vencimentoDesc:
@@ -78,41 +77,40 @@ class _DetalhamentoAgrupamentoScreenState
       }
     });
 
-    // totais
     final totalGeral =
         itensFiltrados.fold<double>(0.0, (s, e) => s + e.valorParcela);
     final qtdGeral = itensFiltrados.length;
 
-    // agrupamento local
-    final agrupado = groupBy == GroupByOption.none
+    final agrupado = _groupBy == GroupByOption.none
         ? <String, List<DetalheParcelaDTO>>{'Todos': itensFiltrados}
         : _group(
             itensFiltrados,
-            groupBy == GroupByOption.caixa
-                ? (d) => d.caixaDescricao ?? 'perdidos'
+            _groupBy == GroupByOption.caixa
+                ? (d) => d.caixaDescricao ?? 'Sem caixa'
                 : (d) => d.vendedorNome ?? 'Sem vendedor',
           );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalhamento de Parcelas')),
+      appBar: AppBar(
+        title: const Text('Detalhamento de Parcelas'),
+        actions: [
+          IconButton(
+            tooltip: 'Atualizar',
+            onPressed: _recarregarDetalhes,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: () async {
-                final empresaId =
-                    Provider.of<EmpresaProvider>(context, listen: false)
-                        .empresa!
-                        .id!;
-                await provider.buscarDetalhesGeralUsandoUltimoFiltro(
-                    empresaId: empresaId);
-              },
+              onRefresh: _recarregarDetalhes,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
                 children: [
-                  // KPIs com gradiente do tema
                   Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       _KpiGradientCard(
                         title: 'Itens',
@@ -126,89 +124,123 @@ class _DetalhamentoAgrupamentoScreenState
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-
-                  // Barra de ações
-                  if (hasCaixa || hasVendedor)
-                    _GroupSelectorBar(
-                      initial: groupBy,
-                      enableCaixa: hasCaixa,
-                      enableVendedor: hasVendedor,
-                      onChanged: (v) => setState(() => _groupBy = v),
-                    ),
-                  const SizedBox(height: 10),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.search),
-                            hintText:
-                                'Buscar por cliente, contrato, caixa ou vendedor',
+                  const SizedBox(height: 8),
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.tune, size: 18),
+                              const SizedBox(width: 6),
+                              const Expanded(
+                                child: Text(
+                                  'Filtros e busca',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              if (_searchText.isNotEmpty)
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _searchText = '';
+                                      _searchController.clear();
+                                    });
+                                  },
+                                  child: const Text('Limpar'),
+                                ),
+                            ],
                           ),
-                          onChanged: (v) => setState(() => _searchText = v),
+                          const SizedBox(height: 6),
+                          if (hasCaixa || hasVendedor)
+                            _GroupSelectorBar(
+                              initial: _groupBy,
+                              enableCaixa: hasCaixa,
+                              enableVendedor: hasVendedor,
+                              onChanged: (v) => setState(() => _groupBy = v),
+                            ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchController,
+                                  decoration: InputDecoration(
+                                    prefixIcon: const Icon(Icons.search),
+                                    hintText:
+                                        'Buscar por cliente, contrato, caixa ou vendedor',
+                                    suffixIcon: _searchText.isNotEmpty
+                                        ? IconButton(
+                                            tooltip: 'Limpar busca',
+                                            onPressed: () {
+                                              setState(() {
+                                                _searchText = '';
+                                                _searchController.clear();
+                                              });
+                                            },
+                                            icon: const Icon(Icons.close),
+                                          )
+                                        : null,
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
+                                  ),
+                                  onChanged: (v) =>
+                                      setState(() => _searchText = v),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              _SortButton(
+                                value: _sortBy,
+                                onSelected: (v) => setState(() => _sortBy = v),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (itensFiltrados.isEmpty)
+                    Card(
+                      elevation: 0,
+                      color: Colors.grey.shade100,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      child: const Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                        child: Text(
+                          'Nenhuma parcela encontrada para os filtros atuais.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      _SortButton(
-                        value: sortBy,
-                        onSelected: (v) => setState(() => _sortBy = v),
-                      ),
-                    ],
-                  ),
+                    )
+                  else
+                    ...agrupado.entries.map((entry) {
+                      final nomeGrupo = entry.key;
+                      final list = entry.value;
+                      final subtotal =
+                          list.fold<double>(0.0, (s, e) => s + e.valorParcela);
 
-                  const SizedBox(height: 12),
-
-                  // Grupos
-                  ...agrupado.entries.map((entry) {
-                    final nomeGrupo = entry.key;
-                    final list = entry.value;
-                    final subtotal =
-                        list.fold<double>(0.0, (s, e) => s + e.valorParcela);
-
-                    return _GroupCard(
-                      title: nomeGrupo,
-                      subtitle:
-                          'Qtd: ${list.length}  •  Total: ${Util.formatarMoeda(subtotal)}',
-                      initiallyExpanded: groupBy == GroupByOption.none,
-                      wide: isWide,
-                      children: list,
-                    );
-                  }),
+                      return _GroupCard(
+                        title: nomeGrupo,
+                        subtitle:
+                            'Qtd: ${list.length} - Total: ${Util.formatarMoeda(subtotal)}',
+                        initiallyExpanded: _groupBy == GroupByOption.none,
+                        wide: isWide,
+                        children: list,
+                      );
+                    }),
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _kpiCard(BuildContext context,
-      {required String title, required String value, required IconData icon}) {
-    return Container(
-      width: 220,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
-      child: Row(
-        children: [
-          Icon(icon),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title,
-                  style: TextStyle(color: Colors.grey[700], fontSize: 12)),
-              const SizedBox(height: 2),
-              Text(value,
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w700)),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -241,27 +273,22 @@ class _GroupSelectorBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // use SegmentedButton (Material 3) se disponível, senão fallback para ChoiceChip
-    return LayoutBuilder(
-      builder: (ctx, cts) {
-        final opts = <GroupByOption>[
-          GroupByOption.none,
-          if (enableCaixa) GroupByOption.caixa,
-          if (enableVendedor) GroupByOption.vendedor,
-        ];
+    final opts = <GroupByOption>[
+      GroupByOption.none,
+      if (enableCaixa) GroupByOption.caixa,
+      if (enableVendedor) GroupByOption.vendedor,
+    ];
 
-        return Wrap(
-          spacing: 8,
-          children: opts.map((opt) {
-            final selected = opt == initial;
-            return ChoiceChip(
-              label: Text(_label(opt)),
-              selected: selected,
-              onSelected: (_) => onChanged(opt),
-            );
-          }).toList(),
+    return Wrap(
+      spacing: 8,
+      children: opts.map((opt) {
+        final selected = opt == initial;
+        return ChoiceChip(
+          label: Text(_label(opt)),
+          selected: selected,
+          onSelected: (_) => onChanged(opt),
         );
-      },
+      }).toList(),
     );
   }
 
@@ -283,9 +310,9 @@ class _ParcelaTile extends StatelessWidget {
 
   Color _statusColor() {
     final s = d.status.toUpperCase();
-    if (s.contains('PAG')) return Colors.green.shade600; // PAGA
-    if (s.contains('ATRAS')) return Colors.red.shade600; // ATRASADA
-    return Colors.orange.shade700; // PENDENTE/OUTROS
+    if (s.contains('PAG')) return Colors.green.shade600;
+    if (s.contains('ATRAS')) return Colors.red.shade600;
+    return Colors.orange.shade700;
   }
 
   @override
@@ -301,7 +328,7 @@ class _ParcelaTile extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.bold)),
       ),
       title: Text(
-        '${d.clienteNome} • ${Util.formatarMoeda(d.valorParcela)}',
+        '${d.clienteNome} - ${Util.formatarMoeda(d.valorParcela)}',
         style: const TextStyle(
             fontWeight: FontWeight.w700, color: AppTheme.textColor),
       ),
@@ -393,9 +420,9 @@ class _GridTwoColumns extends StatelessWidget {
         itemCount: list.length,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-          childAspectRatio: 2.9,
+          mainAxisSpacing: 6,
+          crossAxisSpacing: 6,
+          childAspectRatio: 3.2,
         ),
         itemBuilder: (_, i) => Card(
           elevation: 1.5,
@@ -425,8 +452,8 @@ class _KpiGradientCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 240,
-      padding: const EdgeInsets.all(16),
+      width: 190,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: AppTheme.primaryGradient,
         borderRadius: BorderRadius.circular(14),
@@ -437,7 +464,7 @@ class _KpiGradientCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(.15),
               borderRadius: BorderRadius.circular(12),
@@ -452,13 +479,13 @@ class _KpiGradientCard extends StatelessWidget {
                 Text(title,
                     style: const TextStyle(
                         color: Colors.white70,
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Text(value,
                     style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800)),
               ],
             ),
@@ -482,12 +509,12 @@ class _SortButton extends StatelessWidget {
       onSelected: onSelected,
       itemBuilder: (ctx) => const [
         PopupMenuItem(
-            value: _SortBy.vencimentoAsc, child: Text('Vencimento ↑')),
+            value: _SortBy.vencimentoAsc, child: Text('Vencimento asc')),
         PopupMenuItem(
-            value: _SortBy.vencimentoDesc, child: Text('Vencimento ↓')),
-        PopupMenuItem(value: _SortBy.valorAsc, child: Text('Valor ↑')),
-        PopupMenuItem(value: _SortBy.valorDesc, child: Text('Valor ↓')),
-        PopupMenuItem(value: _SortBy.status, child: Text('Status (A→Z)')),
+            value: _SortBy.vencimentoDesc, child: Text('Vencimento desc')),
+        PopupMenuItem(value: _SortBy.valorAsc, child: Text('Valor asc')),
+        PopupMenuItem(value: _SortBy.valorDesc, child: Text('Valor desc')),
+        PopupMenuItem(value: _SortBy.status, child: Text('Status (A-Z)')),
       ],
       child: OutlinedButton.icon(
         icon: const Icon(Icons.sort, color: AppTheme.primaryColor),
@@ -526,18 +553,17 @@ class _GroupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 3,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
-          // Header com faixa (accent)
           Container(
             width: double.infinity,
             decoration: const BoxDecoration(
               color: AppTheme.neutralColor,
               borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
               children: [
                 Container(

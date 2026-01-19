@@ -10,6 +10,7 @@ import 'package:emprestimos_app/screens/cobranca/resumo_cobranca_detalhe_agrupam
 import 'package:emprestimos_app/widgets/custom_button.dart';
 import 'package:emprestimos_app/widgets/range_datas.dart';
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 class ResumoCobrancasScreen extends StatefulWidget {
@@ -220,13 +221,23 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
     }
 
     if (dados.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 32),
-        child: Center(
-          child: Text(
-            '',
-            style: TextStyle(fontSize: 16, color: Colors.grey),
-          ),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Lottie.asset(
+              'assets/img/no-results.json',
+              height: 180,
+              repeat: true,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Nenhum resultado encontrado para os filtros atuais.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
         ),
       );
     }
@@ -240,55 +251,83 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
+          Column(
+        children: [
           SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: MaterialStateProperty.all(
-                Theme.of(context).primaryColor.withOpacity(0.1),
-              ),
-              columnSpacing: 32,
-              columns: const [
-                DataColumn(label: Text('Responsavel')),
-                DataColumn(label: Text('Nº Parcelas')),
-                DataColumn(label: Text('Valor Total')),
-              ],
-              rows: [
-                ...dados.map((e) => DataRow(cells: [
-                      DataCell(Text(e.responsavel)),
-                      DataCell(Center(child: Text(e.contagem.toString()))),
-                      DataCell(Text(Util.formatarMoeda(e.total))),
-                    ])),
-                // ➕ Linha de Total Geral
-                DataRow(
-                  color: MaterialStateProperty.all(Colors.grey[200]),
-                  cells: [
-                    const DataCell(
-                      Text(
-                        'Total Geral',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    DataCell(
-                      Center(
-                        child: Text(
-                          totalParcelas.toString(),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  headingRowColor: MaterialStateProperty.all(
+                    Theme.of(context).primaryColor.withOpacity(0.1),
+                  ),
+                  columnSpacing: 32,
+                  columns: const [
+                    DataColumn(label: Text('Responsavel')),
+                    DataColumn(label: Text('Nº Parcelas')),
+                    DataColumn(label: Text('Valor Total')),
+                  ],
+                  rows: [
+                    ...dados.map((e) => DataRow(cells: [
+                          DataCell(Text(e.responsavel)),
+                          DataCell(Center(child: Text(e.contagem.toString()))),
+                          DataCell(Text(Util.formatarMoeda(e.total))),
+                        ])),
+                    // ➕ Linha de Total Geral
+                    DataRow(
+                      color: MaterialStateProperty.all(Colors.grey[200]),
+                      cells: [
+                        const DataCell(
+                          Text(
+                            'Total Geral',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        Util.formatarMoeda(totalValor),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                        DataCell(
+                          Center(
+                            child: Text(
+                              totalParcelas.toString(),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            Util.formatarMoeda(totalValor),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
           ),
           const SizedBox(height: 12),
           // Botão de Detalhamento
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.list_alt_outlined),
+              label: const Text('Detalhar (todas as parcelas)'),
+              onPressed: () async {
+                final empresaId =
+                    Provider.of<EmpresaProvider>(context, listen: false)
+                        .empresa!
+                        .id;
+                await provider.buscarDetalhesGeralUsandoUltimoFiltro(
+                    empresaId: empresaId!);
+
+                if (!mounted) return;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const DetalhamentoAgrupamentoScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+          ),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: ElevatedButton.icon(

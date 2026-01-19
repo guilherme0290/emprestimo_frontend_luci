@@ -36,10 +36,8 @@ class ContasReceberProvider with ChangeNotifier {
   List<TransacaoCaixaDTO> _transacoes = [];
   List<AgrupamentoParcelaDTO> _resumoCobranca = [];
 
-  // novo: último filtro usado no totalizador
-  FiltroResumo? _ultimoFiltro;
-
   // novo: detalhes flat para a tela de detalhamento
+  FiltroResumo? _ultimoFiltro;
   List<DetalheParcelaDTO> detalhesGeral = [];
 
   bool esconderValores = true;
@@ -804,6 +802,43 @@ class ContasReceberProvider with ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await Api.loadAuthToken();
+      final f = _ultimoFiltro!;
+      final response =
+          await Api.dio.get('/parcelas/detalhes', queryParameters: {
+        'empresaId': empresaId.toString(),
+        'status': f.status,
+        'dataInicio': f.dataInicio,
+        'dataFim': f.dataFim,
+        'vencimentoOuPagamento': f.vencimentoOuPagamento,
+        'caixaId': f.caixaId?.toString(),
+        'vendedorId': f.vendedorId?.toString(),
+      });
+
+      final apiResponse = ApiResponse<List<dynamic>>.fromJson(
+        response.data,
+        (json) => json as List,
+      );
+
+      if (apiResponse.sucesso) {
+        detalhesGeral = apiResponse.data!
+            .map((e) => DetalheParcelaDTO.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } else {
+        _errorMessage = apiResponse.message;
+      }
+    } on DioException catch (dioErr) {
+      _errorMessage = DioErrorHandler.handleDioException(dioErr);
+    } catch (e) {
+      _errorMessage = "Erro ao buscar detalhes das parcelas: $e";
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<bool> deletarContrato(int contasReceberId) async {

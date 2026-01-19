@@ -69,6 +69,8 @@ dependencies:
   printing: ^5.13.0
   path_provider: ^2.1.4
   share_plus: ^10.1.2
+  lottie: ^3.1.0
+  android_intent_plus: ^5.2.1
   
   
     
@@ -103,6 +105,7 @@ flutter:
     - assets/logo.png    
     - assets/img/money_background.png
     - assets/img/cliente_sem_emprestimo.png
+    - assets/img/no-results.json
     
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

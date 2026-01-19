@@ -1,11 +1,22 @@
 import 'package:emprestimos_app/models/empresa.dart';
 import 'package:emprestimos_app/models/mensagem_manual.dart';
+import 'package:emprestimos_app/models/emprestimo.dart';
+import 'package:emprestimos_app/models/parcela.dart';
 import 'package:emprestimos_app/providers/empresa_provider.dart';
+import 'package:emprestimos_app/providers/emprestimo_provider.dart';
 import 'package:emprestimos_app/providers/mensagens_manuais_provider.dart';
 import 'package:emprestimos_app/widgets/background_screens_widget.dart';
 import 'package:emprestimos_app/widgets/custom_button.dart';
+import 'package:emprestimos_app/core/data_utils.dart';
+import 'package:emprestimos_app/core/mensagem_tags.dart';
+import 'package:emprestimos_app/core/mensagem_utils.dart';
+import 'package:emprestimos_app/core/util.dart';
+import 'package:emprestimos_app/widgets/mensagem_teste_dialog.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher_string.dart';
+import 'package:android_intent_plus/android_intent.dart';
 
 class MensagensManuaisScreen extends StatefulWidget {
   const MensagensManuaisScreen({super.key});
@@ -17,6 +28,7 @@ class MensagensManuaisScreen extends StatefulWidget {
 class _MensagensManuaisScreenState extends State<MensagensManuaisScreen> {
   final Map<TipoMensagemManual, TextEditingController> _controllers = {};
   final Map<TipoMensagemManual, bool> _habilitado = {};
+  final Map<TipoMensagemManual, FocusNode> _focusNodes = {};
   Empresa? _empresa;
 
   @override
@@ -41,6 +53,9 @@ class _MensagensManuaisScreenState extends State<MensagensManuaisScreen> {
     for (var controller in _controllers.values) {
       controller.dispose();
     }
+    for (var node in _focusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -58,13 +73,309 @@ class _MensagensManuaisScreenState extends State<MensagensManuaisScreen> {
     return _empresa?.plano?.incluiWhatsapp ?? false;
   }
 
+  ParcelaDTO _selecionarParcelaParaPreview(
+      TipoMensagemManual tipo, ContasReceberDTO conta) {
+    if (conta.parcelas.isEmpty) {
+      return ParcelaDTO(
+        id: 0,
+        valor: 0,
+        dataVencimento: "",
+        numeroParcela: 0,
+        status: "",
+        dataPagamento: null,
+        baixas: const [],
+      );
+    }
+
+    if (tipo == TipoMensagemManual.baixaParcela) {
+      final paga = conta.parcelas.firstWhere(
+        (p) => p.status == "PAGA",
+        orElse: () => conta.parcelas.first,
+      );
+      return paga;
+    }
+
+    final pendente = conta.parcelas.firstWhere(
+      (p) => p.status != "PAGA",
+      orElse: () => conta.parcelas.first,
+    );
+    return pendente;
+  }
+
+  Map<String, String> _montarTagsManuais(
+      ContasReceberDTO conta, ParcelaDTO parcela) {
+    final nomeCliente = conta.cliente.nome ?? "Cliente";
+    final primeiroNome = Util.getPrimeiroNome(nomeCliente);
+    final valorParcela = Util.formatarMoeda(parcela.valor);
+    final totalContrato = Util.formatarMoeda(conta.valor);
+    final dataVencimento =
+        FormatData.formatarDataCompleta(parcela.dataVencimento);
+    final dataVencimentoCurta =
+        FormatData.formatarData(parcela.dataVencimento);
+    final dataPagamento = parcela.dataPagamento != null
+        ? FormatData.formatarDataHora(parcela.dataPagamento)
+        : "hoje";
+    final cobrador = conta.vendedorNome ?? "";
+
+    final totalPago = conta.parcelas
+        .expand((p) => p.baixas ?? const [])
+        .fold(0.0, (total, b) => total + b.valor);
+    final saldoDevedor = Util.formatarMoeda(conta.valor - totalPago);
+    final parcelasEmAtraso =
+        conta.parcelas.where((p) => p.status == "ATRASADA").length.toString();
+    final saldoEmAtraso = Util.formatarMoeda(
+      conta.parcelas
+          .where((p) => p.status == "ATRASADA")
+          .fold(0.0, (total, p) => total + p.valor),
+    );
+
+    return {
+      "nome": nomeCliente,
+      "primeiro_nome": primeiroNome,
+      "numero_parcela": parcela.numeroParcela.toString(),
+      "valor_parcela": valorParcela,
+      "valor_total": totalContrato,
+      "vencimento": dataVencimentoCurta,
+      "vencimento_extenso": dataVencimento,
+      "data_pagamento": dataPagamento,
+      "contrato_id": conta.id.toString(),
+      "cobrador": cobrador,
+      "saldo_devedor": saldoDevedor,
+      "saldo_em_atraso": saldoEmAtraso,
+      "parcelas_em_atraso": parcelasEmAtraso,
+      "saudacao": MensagemUtils.obterSaudacao(),
+    };
+  }
+
+  Future<List<ContasReceberDTO>> _buscarContasReceberParaTeste() async {
+    final provider = Provider.of<ContasReceberProvider>(context, listen: false);
+    await provider.buscarAllContasReceber(null);
+    return provider.contasreceber;
+  }
+
+  Future<void> _abrirModalTesteMensagem(TipoMensagemManual tipo) async {
+    if (!empresaPodeUsarWhatsapp()) return;
+    final controller = _controllers[tipo];
+    if (controller == null || controller.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Preencha a mensagem antes de testar.")),
+      );
+      return;
+    }
+
+    final contas = await _buscarContasReceberParaTeste();
+    if (!mounted) return;
+    if (contas.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Nenhum contrato encontrado.")),
+      );
+      return;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return MensagemTesteDialog(
+          contas: contas,
+          template: controller.text,
+          selecionarParcela: (conta) =>
+              _selecionarParcelaParaPreview(tipo, conta),
+          montarTags: _montarTagsManuais,
+          onEnviar: (telefone, mensagem) =>
+              _abrirWhatsappTeste(context, telefone, mensagem),
+        );
+      },
+    );
+  }
+
+  Future<void> _abrirWhatsappTeste(
+    BuildContext context,
+    String telefone,
+    String mensagem,
+  ) async {
+    final telefoneLimpo = MensagemUtils.limparTelefone(telefone);
+    if (telefoneLimpo.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Informe um telefone valido.")),
+      );
+      return;
+    }
+
+    final mensagemFinal = Uri.encodeComponent(mensagem);
+    final whatsappWebLink = "https://wa.me/$telefoneLimpo?text=$mensagemFinal";
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      await showDialog(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text("Escolher WhatsApp"),
+            content: const Text(
+              "Selecione qual aplicativo deseja usar para o teste.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(dialogContext);
+                  await _abrirWhatsappPorPacote(
+                    context,
+                    whatsappWebLink,
+                    'com.whatsapp',
+                    "Nao foi possivel abrir o WhatsApp.",
+                  );
+                },
+                child: const Text("WhatsApp"),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(dialogContext);
+                  await _abrirWhatsappPorPacote(
+                    context,
+                    whatsappWebLink,
+                    'com.whatsapp.w4b',
+                    "Nao foi possivel abrir o WhatsApp Business.",
+                  );
+                },
+                child: const Text("WhatsApp Business"),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(dialogContext);
+                  await _abrirWhatsappFallback(
+                    context,
+                    whatsappWebLink,
+                    "Nao foi possivel abrir o WhatsApp.",
+                  );
+                },
+                child: const Text("Escolher app"),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    await _abrirWhatsappFallback(
+      context,
+      whatsappWebLink,
+      "Nao foi possivel abrir o WhatsApp.",
+    );
+  }
+
+  Future<void> _abrirWhatsappFallback(
+    BuildContext context,
+    String link,
+    String mensagemErro,
+  ) async {
+    final ok = await launchUrlString(
+      link,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensagemErro)),
+      );
+    }
+  }
+
+  Future<void> _abrirWhatsappPorPacote(
+    BuildContext context,
+    String link,
+    String pacote,
+    String mensagemErro,
+  ) async {
+    try {
+      final intent = AndroidIntent(
+        action: 'android.intent.action.VIEW',
+        data: link,
+        package: pacote,
+      );
+      await intent.launch();
+    } catch (_) {
+      await _abrirWhatsappFallback(context, link, mensagemErro);
+    }
+  }
+
+  void _inserirTagNaMensagem(String tag, TipoMensagemManual tipo) {
+    final controller = _controllers[tipo];
+    if (controller == null) return;
+
+    final selection = controller.selection;
+    final text = controller.text;
+    final start = selection.start >= 0 ? selection.start : text.length;
+    final end = selection.end >= 0 ? selection.end : text.length;
+
+    final novoTexto = text.replaceRange(start, end, tag);
+    controller.value = TextEditingValue(
+      text: novoTexto,
+      selection: TextSelection.collapsed(offset: start + tag.length),
+    );
+  }
+
+  void _mostrarTagsModal(TipoMensagemManual tipo) {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            children: [
+              const Text(
+                "Tags disponiveis",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              ...MensagemTags.todas.map(
+                (t) => ListTile(
+                  title: Text(t["tag"]!),
+                  subtitle: Text(t["desc"]!),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _inserirTagNaMensagem(t["tag"]!, tipo);
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTagChips(TipoMensagemManual tipo) {
+    final tags = MensagemTags.todas.take(6).toList();
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        ...tags.map(
+          (t) => ActionChip(
+            label: Text(t["tag"]!),
+            onPressed: () => _inserirTagNaMensagem(t["tag"]!, tipo),
+          ),
+        ),
+        TextButton(
+          onPressed: () => _mostrarTagsModal(tipo),
+          child: const Text("Mais tags"),
+        ),
+      ],
+    );
+  }
+
   Widget _buildMensagemCard({
     required TipoMensagemManual tipo,
     required String titulo,
     required String subtitulo,
   }) {
-    final controller = _controllers[tipo] ?? TextEditingController();
+    final controller =
+        _controllers.putIfAbsent(tipo, () => TextEditingController());
     final ativo = _habilitado[tipo] ?? true;
+    final focusNode = _focusNodes.putIfAbsent(tipo, () {
+      final node = FocusNode();
+      return node;
+    });
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 10),
@@ -103,17 +414,36 @@ class _MensagensManuaisScreenState extends State<MensagensManuaisScreen> {
             ),
             const SizedBox(height: 12),
             if (ativo)
-              TextField(
-                controller: controller,
-                maxLines: null,
-                decoration: InputDecoration(
-                  hintText: "Digite a mensagem...",
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTagChips(tipo),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    maxLines: null,
+                    decoration: InputDecoration(
+                      hintText: "Digite a mensagem...",
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                ],
+              ),
+            if (ativo) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: () => _abrirModalTesteMensagem(tipo),
+                  icon: const Icon(Icons.visibility_outlined),
+                  label: const Text("Testar"),
                 ),
               ),
+            ],
           ],
         ),
       ),
@@ -167,57 +497,7 @@ class _MensagensManuaisScreenState extends State<MensagensManuaisScreen> {
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Column(
                     children: [
-                      Card(
-                        color: Colors.grey[100],
-                        elevation: 1,
-                        margin: const EdgeInsets.only(bottom: 20),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        child: const Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "🔖 Você pode usar os seguintes placeholders nas mensagens:",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              SizedBox(height: 12),
-                              _TagInfo(
-                                icon: Icons.person_outline,
-                                text: "{{nome}} → Nome do cliente",
-                              ),
-                              _TagInfo(
-                                icon: Icons.confirmation_number_outlined,
-                                text: "{{numeroParcela}} → Número da parcela",
-                              ),
-                              _TagInfo(
-                                icon: Icons.attach_money_outlined,
-                                text: "{{valorParcela}} → Valor da parcela",
-                              ),
-                              _TagInfo(
-                                icon: Icons.account_balance_wallet_outlined,
-                                text:
-                                    "{{totalContasReceber}} → Valor total do contrato",
-                              ),
-                              _TagInfo(
-                                icon: Icons.event_outlined,
-                                text:
-                                    "{{dataVencimento}} → Data de vencimento",
-                              ),
-                              _TagInfo(
-                                icon: Icons.event_available_outlined,
-                                text:
-                                    "{{dataPagamento}} → Data do pagamento (baixa)",
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 8),
                       _buildMensagemCard(
                         tipo: TipoMensagemManual.cobrancaAtraso,
                         titulo: "Cobrança manual",
@@ -248,30 +528,6 @@ class _MensagensManuaisScreenState extends State<MensagensManuaisScreen> {
                 ),
               ),
             ),
-    );
-  }
-}
-
-class _TagInfo extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _TagInfo({
-    required this.icon,
-    required this.text,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 20),
-          const SizedBox(width: 8),
-          Expanded(child: Text(text)),
-        ],
-      ),
     );
   }
 }
