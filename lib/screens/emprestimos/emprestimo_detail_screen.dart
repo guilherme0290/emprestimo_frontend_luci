@@ -203,18 +203,34 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen>
       return;
     }
 
-    final ParcelaDTO parcela = parcelasSelecionadas.first;
     final String nomeCliente =
         _emprestimo!.cliente.nome ?? "Cliente Desconhecido";
     final String telefoneCliente = _emprestimo!.cliente.telefone ?? "";
-    final String numeroParcela = parcela.numeroParcela.toString();
-    final String valorParcela = Util.formatarMoeda(parcela.valor);
-    final String dataVencimento =
-        FormatData.formatarDataCompleta(parcela.dataVencimento);
-    final String dataVencimentoCurta =
-        FormatData.formatarData(parcela.dataVencimento);
+    final bool variasParcelas = parcelasSelecionadas.length > 1;
+    final String numeroParcela = _formatarNumerosParcelas(parcelasSelecionadas);
+    final double valorTotal =
+        parcelasSelecionadas.fold(0, (total, p) => total + p.valor);
+    final String valorParcela = Util.formatarMoeda(valorTotal);
+    final String dataVencimento = _formatarDatasVencimentoParcelas(
+      parcelasSelecionadas,
+      extenso: true,
+    );
+    final String dataVencimentoCurta = _formatarDatasVencimentoParcelas(
+      parcelasSelecionadas,
+      extenso: false,
+    );
 
-    final String mensagemPadraoFallback = """
+    final String mensagemPadraoFallback = variasParcelas
+        ? """
+Olá $nomeCliente,
+
+Estamos entrando em contato para lembrar que suas parcelas nº $numeroParcela no valor total de $valorParcela venceram em $dataVencimento.
+
+Por favor, nos informe sobre o pagamento ou entre em contato para mais informações.
+
+Aguardamos seu retorno!
+"""
+        : """
 Olá $nomeCliente,
 
 Estamos entrando em contato para lembrar que sua parcela nº $numeroParcela no valor de $valorParcela venceu em $dataVencimento.
@@ -270,6 +286,23 @@ Aguardamos seu retorno!
         parcelas.map((p) => p.numeroParcela).whereType<int>().toList()..sort();
     if (numeros.isEmpty) return "";
     return numeros.join(", ");
+  }
+
+  String _formatarDatasVencimentoParcelas(
+    List<ParcelaDTO> parcelas, {
+    required bool extenso,
+  }) {
+    final datas = parcelas
+        .map((p) => p.dataVencimento)
+        .whereType<String>()
+        .toSet()
+        .toList()
+      ..sort();
+    if (datas.isEmpty) return "";
+    final formatar =
+        extenso ? FormatData.formatarDataCompleta : FormatData.formatarData;
+    if (datas.length == 1) return formatar(datas.first);
+    return datas.map(formatar).join(", ");
   }
 
   void _abrirWhatsappParcelasPagas(List<ParcelaDTO> parcelas) {
