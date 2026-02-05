@@ -2,161 +2,140 @@ import 'package:dio/dio.dart';
 import 'package:emprestimos_app/models/api_response.dart';
 import 'package:emprestimos_app/models/whatsapp_conexao_response.dart';
 import 'package:emprestimos_app/models/whatsapp_codigo_conexao.dart';
-import 'package:emprestimos_app/models/whatsapp_instance_connect.dart';
-import 'package:emprestimos_app/models/whatsapp_instancia_status.dart';
-import 'package:emprestimos_app/models/whatsapp_logout_response.dart';
-import 'package:emprestimos_app/models/whatsapp_mensagem_enviada.dart';
 import 'package:emprestimos_app/models/whatsapp_status.dart';
 import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/dio_error_handler.dart';
 
-class WhatsappProvider extends ChangeNotifier {
+class WhatsappProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
-  String? _messageSucess;
-  String? _status; // Ex: "open", "closed", "disconnected"
+  bool _status = false;
   String? _codigo;
   String? _qrBase64;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  String? get messageSucess => _messageSucess;
-  String? get status => _status;
+  bool get status => _status;
   String? get codigoConexao => _codigo;
   String? get qrBase64 => _qrBase64;
 
-  bool get statusConectado => _status == "open";
-
-  void resetMessages() {
+  /// Consulta o status da instância Z-API (via backend)
+  Future<bool> carregarStatusWhatsapp() async {
+    _isLoading = true;
     _errorMessage = null;
-    _messageSucess = null;
     notifyListeners();
-  }
 
-  
-
-  
-
-  Future<WhatsappInstanceConnect?> conectarInstancia(String numero) async {
     try {
-      _isLoading = true;
-      notifyListeners();
+      final response = await Api.dio.get('/whatsapp/status');
 
-      await Api.loadAuthToken();
-      final response = await Api.dio.post("/whatsapp/conectar/$numero");
-
-      final apiResponse = ApiResponse<WhatsappInstanceConnect>.fromJson(
+      final apiResponse = ApiResponse<WhatsappStatusResponse>.fromJson(
         response.data,
-        (json) => WhatsappInstanceConnect.fromJson(json),
+        (json) => WhatsappStatusResponse.fromJson(json as Map<String, dynamic>),
       );
 
       if (apiResponse.sucesso) {
-        return apiResponse.data;
-      } else {
-        _errorMessage = apiResponse.message;
-        return null;
-      }
-    } on DioException catch (dioErr) {
-      _errorMessage = DioErrorHandler.handleDioException(dioErr);
-      return null;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<bool> logout() async {
-    try {
-      _isLoading = true;
-      notifyListeners();
-
-      await Api.loadAuthToken();
-      final response = await Api.dio.delete("/whatsapp/logout");
-
-      final apiResponse = ApiResponse<WhatsappLogoutResponseDTO>.fromJson(
-        response.data,
-        (json) => WhatsappLogoutResponseDTO.fromJson(json),
-      );
-
-      if (apiResponse.sucesso) {
-        _messageSucess = apiResponse.message;
-        _status = null;
+        final status = apiResponse.data;
+        if (status == null) {
+          _errorMessage = "Resposta inválida do servidor ao consultar status.";
+          return false;
+        }
+        _status = status.connected;
         return true;
-      } else {
-        _errorMessage = apiResponse.message;
-        return false;
       }
+      _errorMessage = apiResponse.message;
     } on DioException catch (dioErr) {
-      _errorMessage = DioErrorHandler.handleDioException(dioErr);
-      return false;
+      if (dioErr.response?.statusCode == 400) {
+        final apiResponse = ApiResponse<String>.fromJson(
+          dioErr.response!.data,
+          (json) => json.toString(),
+        );
+
+        _errorMessage = apiResponse.message;
+      } else {
+        _errorMessage = DioErrorHandler.handleDioException(dioErr);
+      }
+    } catch (e) {
+      _errorMessage = "Erro inesperado ao consultar status: $e";
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+
+    return false;
   }
 
-  Future<bool> deletarInstancia() async {
+  /// Gera o código de conexão da Z-API baseado no número informado
+  Future<String?> gerarCodigoConexao(String numero) async {
+    _isLoading = true;
+    _errorMessage = null;
+    _codigo = null;
+    _qrBase64 = null;
+    notifyListeners();
+
     try {
-      _isLoading = true;
-      notifyListeners();
+      final response = await Api.dio.post('/whatsapp/conectar/$numero');
 
-      await Api.loadAuthToken();
-      final response = await Api.dio.delete("/whatsapp/deletar");
-
-      final apiResponse = ApiResponse<WhatsappLogoutResponseDTO>.fromJson(
+      final apiResponse = ApiResponse<WhatsappCodigoConexao>.fromJson(
         response.data,
-        (json) => WhatsappLogoutResponseDTO.fromJson(json),
+        (json) => WhatsappCodigoConexao.fromJson(json as Map<String, dynamic>),
       );
 
       if (apiResponse.sucesso) {
-        _messageSucess = apiResponse.message;
-        _status = null;
+        _codigo = apiResponse.data?.code;
+        _qrBase64 = apiResponse.data?.base64;
+        return _codigo;
+      } else {
+        _errorMessage = apiResponse.message;
+      }
+    } on DioException catch (dioErr) {
+      final message = _extractApiMessage(dioErr);
+      if (message != null &&
+          (message.toLowerCase().contains('instancia nao encontrada') ||
+              message.toLowerCase().contains('instância não encontrada'))) {
+        final criado = await _criarInstancia(numero);
+        if (criado != null) return criado;
+      } else {
+        _errorMessage = DioErrorHandler.handleDioException(dioErr);
+      }
+    } catch (e) {
+      _errorMessage = "Erro inesperado ao gerar código: $e";
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+
+    return null;
+  }
+
+  Future<bool> desconectarWhatsapp() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await Api.dio.delete('/whatsapp/logout');
+      final apiResponse = ApiResponse<String>.fromJson(
+        response.data,
+        (json) => json.toString(),
+      );
+      if (apiResponse.sucesso) {
+        _status = false;
+        _codigo = null;
+        _qrBase64 = null;
         return true;
-      } else {
-        _errorMessage = apiResponse.message;
-        return false;
       }
+      _errorMessage = apiResponse.message;
     } on DioException catch (dioErr) {
       _errorMessage = DioErrorHandler.handleDioException(dioErr);
-      return false;
+    } catch (e) {
+      _errorMessage = "Erro inesperado ao desconectar: $e";
     } finally {
       _isLoading = false;
       notifyListeners();
     }
-  }
 
-  Future<WhatsappMensagemEnviadaDTO?> enviarMensagem(
-      String numero, String texto) async {
-    try {
-      _isLoading = true;
-      notifyListeners();
-
-      await Api.loadAuthToken();
-      final response = await Api.dio.post(
-        "/whatsapp/mensagem/$numero",
-        queryParameters: {"texto": texto},
-      );
-
-      final apiResponse = ApiResponse<WhatsappMensagemEnviadaDTO>.fromJson(
-        response.data,
-        (json) => WhatsappMensagemEnviadaDTO.fromJson(json),
-      );
-
-      if (apiResponse.sucesso) {
-        _messageSucess = apiResponse.message;
-        return apiResponse.data;
-      } else {
-        _errorMessage = apiResponse.message;
-        return null;
-      }
-    } on DioException catch (dioErr) {
-      _errorMessage = DioErrorHandler.handleDioException(dioErr);
-      return null;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    return false;
   }
 
   Future<String?> _criarInstancia(String numero) async {
@@ -171,6 +150,7 @@ class WhatsappProvider extends ChangeNotifier {
 
       if (apiResponse.sucesso) {
         final codigo = apiResponse.data?.qrcode?.code;
+        _qrBase64 = apiResponse.data?.qrcode?.base64;
         if (codigo != null && codigo.isNotEmpty) {
           _codigo = codigo;
           return _codigo;
@@ -184,6 +164,7 @@ class WhatsappProvider extends ChangeNotifier {
         );
         if (connectResponse.sucesso) {
           _codigo = connectResponse.data?.code;
+          _qrBase64 = connectResponse.data?.base64;
           return _codigo;
         }
         _errorMessage = connectResponse.message;
