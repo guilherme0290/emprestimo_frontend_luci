@@ -72,7 +72,7 @@ class _TransferenciaCaixaScreenState extends State<TransferenciaCaixaScreen> {
     );
     if (!mounted) return;
     if (sucesso) {
-      _mostrarMensagem("Transferencia concluida.");
+      _mostrarMensagem("Transferência concluida.");
       await _buscarContas();
     } else {
       _mostrarMensagem("Erro ao transferir.");
@@ -111,7 +111,7 @@ class _TransferenciaCaixaScreenState extends State<TransferenciaCaixaScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Transferencia entre caixas"),
+        title: const Text("Transferência entre caixas"),
       ),
       body: Column(
         children: [
@@ -165,7 +165,7 @@ class _TransferenciaCaixaScreenState extends State<TransferenciaCaixaScreen> {
                         TextField(
                           controller: _searchController,
                           decoration: InputDecoration(
-                            labelText: "Buscar por descricao ou cliente",
+                            labelText: "Buscar por descrição ou cliente",
                             suffixIcon: IconButton(
                               icon: const Icon(
                                 Icons.search,
@@ -319,7 +319,7 @@ class _TransferenciaCaixaScreenState extends State<TransferenciaCaixaScreen> {
                               subtitle: Text(
                                 conta.descricao?.isNotEmpty == true
                                     ? conta.descricao!
-                                    : "Sem descricao",
+                                    : "Sem descrição",
                               ),
                               secondary: Text(
                                 "R\$ ${conta.valor.toStringAsFixed(2)}",

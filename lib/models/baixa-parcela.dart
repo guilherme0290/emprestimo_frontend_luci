@@ -7,6 +7,7 @@ class BaixaParcelaDTO {
   String? vendedorNome;
   int parcelaId;
   String? createdAt;
+  bool? aplicarJurosAtraso;
 
   BaixaParcelaDTO({
     this.id,
@@ -17,6 +18,7 @@ class BaixaParcelaDTO {
     this.vendedorNome,
     required this.parcelaId,
     this.createdAt,
+    this.aplicarJurosAtraso,
   });
 
   factory BaixaParcelaDTO.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class BaixaParcelaDTO {
       vendedorNome: json['vendedorNome'],
       parcelaId: json['parcelaId'] as int,
       createdAt: json['createdAt'],
+      aplicarJurosAtraso: json['aplicarJurosAtraso'] as bool?,
     );
   }
 
@@ -40,7 +43,8 @@ class BaixaParcelaDTO {
       "dataPagamento": dataPagamento,
       "vendedorId": vendedorId,
       "parcelaId": parcelaId,
-      "createdAt": createdAt
+      "createdAt": createdAt,
+      "aplicarJurosAtraso": aplicarJurosAtraso,
     };
   }
 }

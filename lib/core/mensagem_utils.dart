@@ -27,7 +27,7 @@ class MensagemUtils {
     final telefoneLimpo = limparTelefone(telefone);
     if (telefoneLimpo.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Informe um telefone valido.")),
+        const SnackBar(content: Text("Informe um telefone válido.")),
       );
       return;
     }

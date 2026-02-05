@@ -509,7 +509,7 @@ class _ContasReceberFormState extends State<ContasReceberForm> {
               labelText: 'Número de parcelas',
               type: TextInputType.number,
               validator: (value) => (value == null || value.isEmpty)
-                  ? "Favor informar o numero de parcelas!"
+                  ? "Favor informar o número de parcelas!"
                   : null,
             ),
           ],

@@ -204,7 +204,7 @@ class _MensagensManuaisScreenState extends State<MensagensManuaisScreen> {
     final telefoneLimpo = MensagemUtils.limparTelefone(telefone);
     if (telefoneLimpo.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Informe um telefone valido.")),
+        const SnackBar(content: Text("Informe um telefone válido.")),
       );
       return;
     }
@@ -229,7 +229,7 @@ class _MensagensManuaisScreenState extends State<MensagensManuaisScreen> {
                     context,
                     whatsappWebLink,
                     'com.whatsapp',
-                    "Nao foi possivel abrir o WhatsApp.",
+                    "Não foi possível abrir o WhatsApp.",
                   );
                 },
                 child: const Text("WhatsApp"),
@@ -241,7 +241,7 @@ class _MensagensManuaisScreenState extends State<MensagensManuaisScreen> {
                     context,
                     whatsappWebLink,
                     'com.whatsapp.w4b',
-                    "Nao foi possivel abrir o WhatsApp Business.",
+                    "Não foi possível abrir o WhatsApp Business.",
                   );
                 },
                 child: const Text("WhatsApp Business"),
@@ -252,7 +252,7 @@ class _MensagensManuaisScreenState extends State<MensagensManuaisScreen> {
                   await _abrirWhatsappFallback(
                     context,
                     whatsappWebLink,
-                    "Nao foi possivel abrir o WhatsApp.",
+                    "Não foi possível abrir o WhatsApp.",
                   );
                 },
                 child: const Text("Escolher app"),
@@ -267,7 +267,7 @@ class _MensagensManuaisScreenState extends State<MensagensManuaisScreen> {
     await _abrirWhatsappFallback(
       context,
       whatsappWebLink,
-      "Nao foi possivel abrir o WhatsApp.",
+      "Não foi possível abrir o WhatsApp.",
     );
   }
 

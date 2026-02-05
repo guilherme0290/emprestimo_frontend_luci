@@ -14,12 +14,30 @@ class StorageService {
     }
   }
 
+  static Future<void> saveRefreshToken(String token) async {
+    if (!kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('refresh_token', token);
+    } else {
+      await _secureStorage.write(key: 'refresh_token', value: token);
+    }
+  }
+
   static Future<String?> getToken() async {
     if (!kIsWeb) {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('jwt_token');
     } else {
       return await _secureStorage.read(key: 'jwt_token');
+    }
+  }
+
+  static Future<String?> getRefreshToken() async {
+    if (!kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('refresh_token');
+    } else {
+      return await _secureStorage.read(key: 'refresh_token');
     }
   }
 
@@ -36,9 +54,11 @@ class StorageService {
     if (!kIsWeb) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('jwt_token');
+      await prefs.remove('refresh_token');
       await prefs.remove('loginResponse');
     } else {
       await _secureStorage.delete(key: 'jwt_token');
+      await _secureStorage.delete(key: 'refresh_token');
       await _secureStorage.delete(key: 'loginResponse');
     }
   }

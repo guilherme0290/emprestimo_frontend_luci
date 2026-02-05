@@ -72,7 +72,7 @@ class _CidadeDropdownState extends State<CidadeDropdown> {
         return DropdownSearch<Cidade>(
           items: (filter, s) => cidades,
           compareFn: (a, b) => a.id == b.id,
-          validator: (cidade) => cidade == null ? "Informe uma Cidade" : null,
+          validator: (cidade) => null,
           popupProps: PopupProps.dialog(
             fit: FlexFit.tight,
             dialogProps: DialogProps(

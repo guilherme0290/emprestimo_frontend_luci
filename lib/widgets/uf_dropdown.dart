@@ -47,7 +47,7 @@ class UfDropdown extends StatelessWidget {
     return DropdownSearch<String>(
       items: (filter, s) => ufs,
       selectedItem: selectedUf,
-      validator: (uf) => uf == null ? "Informe uma UF" : null,
+      validator: (uf) => null,
       decoratorProps: DropDownDecoratorProps(
         decoration: InputDecoration(
           labelText: "Selecionar UF",

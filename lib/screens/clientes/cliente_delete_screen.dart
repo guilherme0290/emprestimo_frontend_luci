@@ -161,7 +161,7 @@ class _ClienteDeleteScreenState extends State<ClienteDeleteScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            "Excluir um cliente apaga todo o historico, incluindo valores recebidos e a receber. Essa acao nao pode ser desfeita.",
+                            "Excluir um cliente apaga todo o histórico, incluindo valores recebidos e a receber. Essa ação não pode ser desfeita.",
                             style: const TextStyle(fontSize: 14),
                           ),
                         ),
@@ -170,7 +170,7 @@ class _ClienteDeleteScreenState extends State<ClienteDeleteScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    "Se voce so precisa parar de usar o cliente, o recomendado e apenas inativar.",
+                    "Se você só precisa parar de usar o cliente, o recomendado é apenas inativar.",
                     style: TextStyle(
                       color: Colors.grey.shade700,
                       fontWeight: FontWeight.w600,

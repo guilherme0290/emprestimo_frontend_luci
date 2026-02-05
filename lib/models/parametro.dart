@@ -22,10 +22,12 @@ class Parametro {
   factory Parametro.fromJson(Map<String, dynamic> json) {
     return Parametro(
       id: json['id'],
-      chave: json['chave'],
-      valor: json['valor'],
-      tipoReferencia: json['tipoReferencia'],
-      referenciaId: json['referenciaId'],
+      chave: (json['chave'] ?? '').toString(),
+      valor: json['valor'] == null ? '' : json['valor'].toString(),
+      tipoReferencia: (json['tipoReferencia'] ?? '').toString(),
+      referenciaId: json['referenciaId'] == null
+          ? 0
+          : (json['referenciaId'] as num).toInt(),
       valorConvertido: json['valorConvertido'],
       isPendente: json['pendente'] ?? false,
     );

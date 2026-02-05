@@ -101,7 +101,8 @@ class ParametroProvider with ChangeNotifier {
         lista = response.data as List<dynamic>;
       } else if (response.data is Map &&
           (response.data as Map<String, dynamic>)['data'] is List) {
-        lista = (response.data as Map<String, dynamic>)['data'] as List<dynamic>;
+        lista =
+            (response.data as Map<String, dynamic>)['data'] as List<dynamic>;
       }
 
       _parametrosVendedor =
@@ -121,12 +122,24 @@ class ParametroProvider with ChangeNotifier {
     try {
       final response = await Api.dio
           .put("/parametros/${parametro.id}", data: parametro.toJson());
-      if (response.statusCode != null &&
-          response.statusCode! >= 200 &&
-          response.statusCode! < 300) {
-        return true;
+      if (response.data is Map<String, dynamic>) {
+        final apiResponse = ApiResponse<Parametro>.fromJson(
+          response.data,
+          (json) => Parametro.fromJson(json as Map<String, dynamic>),
+        );
+        if (apiResponse.sucesso) {
+          final atualizado = apiResponse.data;
+          if (atualizado != null) {
+            _atualizarParametroLocal(atualizado);
+          }
+          return true;
+        }
+        _errorMessage = apiResponse.message;
+        return false;
       }
-      return false;
+      return response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300;
     } catch (e) {
       _errorMessage = "Erro ao atualizar parâmetro.";
       notifyListeners();
@@ -135,6 +148,18 @@ class ParametroProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  void _atualizarParametroLocal(Parametro atualizado) {
+    void replaceIn(List<Parametro> lista) {
+      final index = lista.indexWhere((p) => p.id == atualizado.id);
+      if (index >= 0) {
+        lista[index] = atualizado;
+      }
+    }
+
+    replaceIn(_parametrosEmpresa);
+    replaceIn(_parametrosCliente);
   }
 
   Future<bool> atualizarParametroDireto({

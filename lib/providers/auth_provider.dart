@@ -73,6 +73,10 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _salvarDadosNoStorage(LoginResponse loginResponse) async {
     await StorageService.saveToken(loginResponse.token);
+    if (loginResponse.refreshToken != null &&
+        loginResponse.refreshToken!.isNotEmpty) {
+      await StorageService.saveRefreshToken(loginResponse.refreshToken!);
+    }
     await StorageService.saveLoginResponse(jsonEncode(loginResponse.toJson()));
     Api.setAuthToken(loginResponse.token);
     _loginResponse = loginResponse;
@@ -84,21 +88,38 @@ class AuthProvider extends ChangeNotifier {
     final dados = await StorageService.getLoginResponse();
     if (dados != null) {
       _loginResponse = LoginResponse.fromJson(jsonDecode(dados));
+      if (_loginResponse?.refreshToken != null &&
+          _loginResponse!.refreshToken!.isNotEmpty) {
+        await StorageService.saveRefreshToken(_loginResponse!.refreshToken!);
+      }
+      _status = AuthStatus.autenticado;
+      await carregarRole();
     }
     notifyListeners();
   }
 
   Future<bool> refreshToken() async {
     try {
-      final response = await Api.dio.get("/auth/refresh");
-
-      if (response.statusCode == 200) {
-        _status = AuthStatus.autenticado;
-        await carregarDadosSalvos();
-      } else {
+      final token = await StorageService.getToken();
+      if (token == null || token.isEmpty) {
         _status = AuthStatus.naoAutenticado;
+        return false;
       }
-      return _status == AuthStatus.autenticado;
+
+      final rawToken = token.replaceFirst('Bearer ', '');
+      if (JwtDecoder.isExpired(rawToken)) {
+        final refreshed = await Api.refreshAuthToken();
+        if (!refreshed) {
+          _status = AuthStatus.naoAutenticado;
+          return false;
+        }
+        await carregarDadosSalvos();
+        return true;
+      }
+
+      // Token ainda válido localmente: mantém autenticado sem forçar login
+      await carregarDadosSalvos();
+      return true;
     } on DioException catch (e) {
       if (kDebugMode) {
         print("❌ Erro no refreshToken: ${e.response?.statusCode} ${e.message}");

@@ -4,6 +4,7 @@ import 'package:emprestimos_app/models/baixa-parcela.dart';
 import 'package:emprestimos_app/models/baixa_parcela_result.dart';
 import 'package:emprestimos_app/models/emprestimo.dart';
 import 'package:emprestimos_app/models/parcela.dart';
+import 'package:emprestimos_app/providers/parametros_provider.dart';
 import 'package:emprestimos_app/providers/emprestimo_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -28,6 +29,12 @@ class _DialogBaixaParcelasState extends State<DialogBaixaParcelas> {
   double _valorParcelas = 0.0;
   double _valorJuros = 0.0;
   double _valorTotalComJuros = 0.0;
+  double _valorJurosAtraso = 0.0;
+  double _valorTotalComAtraso = 0.0;
+  bool _cobrarJurosAtrasoConfig = false;
+  String _jurosAtrasoTipo = "PERCENTUAL";
+  double _jurosAtrasoValor = 0.0;
+  bool _aplicarJurosAtraso = false;
 
   String? _mensagemErro;
 
@@ -41,6 +48,37 @@ class _DialogBaixaParcelasState extends State<DialogBaixaParcelas> {
     super.initState();
     _recalcularTotais();
     _aplicarValorPorTipo();
+    _carregarParametrosJurosAtraso();
+  }
+
+  Future<void> _carregarParametrosJurosAtraso() async {
+    final parametroProvider =
+        Provider.of<ParametroProvider>(context, listen: false);
+    if (parametroProvider.parametrosEmpresa.isEmpty) {
+      await parametroProvider.buscarParametrosEmpresa();
+    }
+
+    final cobrar = parametroProvider
+            .buscarParametroEmpresaChave("COBRAR_JUROS_ATRASO")
+            ?.valor ??
+        "false";
+    final tipo = parametroProvider
+            .buscarParametroEmpresaChave("JUROS_ATRASO_TIPO")
+            ?.valor ??
+        "PERCENTUAL";
+    final valor = parametroProvider
+            .buscarParametroEmpresaChave("JUROS_ATRASO_VALOR")
+            ?.valor ??
+        "0";
+
+    if (!mounted) return;
+    setState(() {
+      _cobrarJurosAtrasoConfig = cobrar.toLowerCase() == 'true';
+      _jurosAtrasoTipo = tipo;
+      _jurosAtrasoValor = double.tryParse(valor) ?? 0.0;
+      _recalcularTotais();
+      _aplicarValorPorTipo();
+    });
   }
 
   void _recalcularTotais() {
@@ -58,26 +96,51 @@ class _DialogBaixaParcelasState extends State<DialogBaixaParcelas> {
 
     // ✅ opcional: só pra exibir no resumo "Total parcelas" (mesmo que seja o total final)
     _valorParcelas = _valorTotalComJuros;
+
+    _valorJurosAtraso = _calcularJurosAtrasoTotal();
+    _valorTotalComAtraso = _valorTotalComJuros + _valorJurosAtraso;
+  }
+
+  double _calcularJurosAtrasoTotal() {
+    if (!_cobrarJurosAtrasoConfig || _jurosAtrasoValor <= 0) return 0.0;
+
+    final hoje = DateTime.now();
+    double total = 0.0;
+    for (final p in widget.parcelasSelecionadas) {
+      final venc = DateTime.tryParse(p.dataVencimento);
+      if (venc == null) continue;
+      final vencSemHora = DateTime(venc.year, venc.month, venc.day);
+      final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
+      final diasAtraso = hojeSemHora.difference(vencSemHora).inDays;
+      if (diasAtraso <= 0) continue;
+
+      if (_jurosAtrasoTipo == "VALOR_FIXO") {
+        total += _jurosAtrasoValor * diasAtraso;
+      } else {
+        total += p.valor * (_jurosAtrasoValor / 100) * diasAtraso;
+      }
+    }
+    return total;
   }
 
   void _aplicarValorPorTipo() {
     double v;
 
     if (!_isMensal) {
-      v = _valorTotalComJuros; // comportamento antigo
+      v = _aplicarJurosAtraso ? _valorTotalComAtraso : _valorTotalComJuros;
     } else {
       switch (_tipoBaixaMensal) {
         case StatusBaixaEnum.JUROS:
           v = _valorJuros;
           break;
         case StatusBaixaEnum.TOTAL:
-          v = _valorTotalComJuros;
+          v = _aplicarJurosAtraso ? _valorTotalComAtraso : _valorTotalComJuros;
           break;
         case StatusBaixaEnum.PARCIAL:
           v = _valorTotalComJuros; // começa no máximo, mas deixa editar
           break;
         case StatusBaixaEnum.QUITADA:
-          v = _valorTotalComJuros;
+          v = _aplicarJurosAtraso ? _valorTotalComAtraso : _valorTotalComJuros;
           break;
       }
     }
@@ -100,6 +163,24 @@ class _DialogBaixaParcelasState extends State<DialogBaixaParcelas> {
               _buildTipoBaixaMensal(),
               const SizedBox(height: 12),
               _buildResumoMensal(),
+              const SizedBox(height: 12),
+            ],
+            if (_cobrarJurosAtrasoConfig && _valorJurosAtraso > 0) ...[
+              SwitchListTile(
+                value: _aplicarJurosAtraso,
+                onChanged: (v) {
+                  setState(() {
+                    _aplicarJurosAtraso = v;
+                    _mensagemErro = null;
+                    _aplicarValorPorTipo();
+                  });
+                },
+                title: const Text("Cobrar juros por atraso"),
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              const SizedBox(height: 8),
+              _buildResumoAtraso(),
               const SizedBox(height: 12),
             ],
             _buildValorTextField(),
@@ -209,6 +290,28 @@ class _DialogBaixaParcelasState extends State<DialogBaixaParcelas> {
     );
   }
 
+  Widget _buildResumoAtraso() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.orange.withOpacity(0.08),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Juros por atraso: ${Util.formatarMoeda(_valorJurosAtraso)}"),
+          const SizedBox(height: 4),
+          Text(
+            "Total com atraso: ${Util.formatarMoeda(_valorTotalComAtraso)}",
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildValorTextField() {
     final readOnly = _isMensal && _tipoBaixaMensal != StatusBaixaEnum.PARCIAL;
 
@@ -275,15 +378,19 @@ class _DialogBaixaParcelasState extends State<DialogBaixaParcelas> {
         return;
       }
 
-      if (valorInformado > _valorTotalComJuros) {
+      final maxMensal =
+          _aplicarJurosAtraso ? _valorTotalComAtraso : _valorTotalComJuros;
+      if (valorInformado > maxMensal) {
         setState(() => _mensagemErro =
-            "Valor maior que o total permitido (${Util.formatarMoeda(_valorTotalComJuros)}).");
+            "Valor maior que o total permitido (${Util.formatarMoeda(maxMensal)}).");
         return;
       }
     } else {
-      if (valorInformado > _valorParcelas) {
+      final maxNaoMensal =
+          _aplicarJurosAtraso ? _valorTotalComAtraso : _valorParcelas;
+      if (valorInformado > maxNaoMensal) {
         setState(() => _mensagemErro =
-            "Valor maior que o total das parcelas (${Util.formatarMoeda(_valorParcelas)}).");
+            "Valor maior que o total das parcelas (${Util.formatarMoeda(maxNaoMensal)}).");
         return;
       }
     }
@@ -302,6 +409,7 @@ class _DialogBaixaParcelasState extends State<DialogBaixaParcelas> {
       final baixaDTO = BaixaParcelaDTO(
         valor: valorPorParcela,
         parcelaId: parcela.id,
+        aplicarJurosAtraso: _aplicarJurosAtraso,
 
         // ✅ Se você tiver como enviar pro backend o tipo, adicione no DTO:
         // tipoBaixa: _isMensal ? _tipoBaixaMensal.name : null,

@@ -26,7 +26,7 @@ class MensagemTesteDialog extends StatefulWidget {
     required this.montarTags,
     required this.onEnviar,
     this.titulo = "Teste de mensagem",
-    this.infoRodape = "Este envio nao altera o telefone do cliente.",
+    this.infoRodape = "Este envio não altera o telefone do cliente.",
   });
 
   @override
@@ -107,7 +107,7 @@ class _MensagemTesteDialogState extends State<MensagemTesteDialog> {
             ),
             const SizedBox(height: 12),
             const Text(
-              "Previa da mensagem",
+              "Prévia da mensagem",
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),

@@ -418,6 +418,10 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
                     type: TextInputType.emailAddress,
                     leadingIcon:
                         const Icon(Icons.email, color: AppTheme.primaryColor),
+                    validator: (value) =>
+                        emailController.text.isNotEmpty
+                            ? Util.isEmailValid(emailController.text)
+                            : null,
                   ),
                   const SizedBox(height: 10),
                   _buildSectionTitle("Endereço"),

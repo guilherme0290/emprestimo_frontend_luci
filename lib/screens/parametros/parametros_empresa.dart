@@ -25,9 +25,13 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
   final TextEditingController jurosPadraoController = TextEditingController();
   final TextEditingController limiteContasReceberEmAbertoPorClienteController =
       TextEditingController();
+  final TextEditingController jurosAtrasoValorController =
+      TextEditingController();
   bool permitirBaixaParcial = false;
   bool obrigarVendedorVenda = false;
   bool permitirVendedorTodosClientes = false;
+  bool cobrarJurosAtraso = false;
+  String jurosAtrasoTipo = "PERCENTUAL";
   bool _atualizandoObrigarVendedorVenda = false;
   bool _atualizandoPermitirVendedorTodosClientes = false;
   bool _isLoading = true;
@@ -77,6 +81,18 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
                 "PERMITIR_VENDEDOR_ACESSAR_TODOS_CLIENTES_EMPRESA")
             ?.valor ??
         "false";
+    final cobrarJurosAtrasoParam = parametroProvider
+            .buscarParametroEmpresaChave("COBRAR_JUROS_ATRASO")
+            ?.valor ??
+        "false";
+    final jurosAtrasoTipoParam = parametroProvider
+            .buscarParametroEmpresaChave("JUROS_ATRASO_TIPO")
+            ?.valor ??
+        "PERCENTUAL";
+    final jurosAtrasoValorParam = parametroProvider
+            .buscarParametroEmpresaChave("JUROS_ATRASO_VALOR")
+            ?.valor ??
+        "0";
 
     final limiteContasReceberEmAbertoPorCliente = parametroProvider
             .buscarParametroEmpresaChave("LIMITE_EMPRESTIMO_CLIENTE")
@@ -95,6 +111,9 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
           permitirTodosClientes.toLowerCase() == 'true';
       limiteContasReceberEmAbertoPorClienteController.text =
           limiteContasReceberEmAbertoPorCliente;
+      cobrarJurosAtraso = cobrarJurosAtrasoParam.toLowerCase() == 'true';
+      jurosAtrasoTipo = jurosAtrasoTipoParam;
+      jurosAtrasoValorController.text = jurosAtrasoValorParam;
       _isLoading = false;
     });
   }
@@ -152,7 +171,49 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
       ),
     );
 
-    if (sucesso1 && sucesso2 && sucesso3 && sucesso4) {
+    bool sucesso5 = await parametroProvider.atualizarParametro(
+      Parametro(
+        id: parametroProvider
+            .buscarParametroEmpresaChave("COBRAR_JUROS_ATRASO")
+            ?.id,
+        chave: "COBRAR_JUROS_ATRASO",
+        valor: cobrarJurosAtraso.toString(),
+        tipoReferencia: "EMPRESA",
+        referenciaId: empresaId,
+      ),
+    );
+
+    bool sucesso6 = await parametroProvider.atualizarParametro(
+      Parametro(
+        id: parametroProvider
+            .buscarParametroEmpresaChave("JUROS_ATRASO_TIPO")
+            ?.id,
+        chave: "JUROS_ATRASO_TIPO",
+        valor: jurosAtrasoTipo,
+        tipoReferencia: "EMPRESA",
+        referenciaId: empresaId,
+      ),
+    );
+
+    bool sucesso7 = await parametroProvider.atualizarParametro(
+      Parametro(
+        id: parametroProvider
+            .buscarParametroEmpresaChave("JUROS_ATRASO_VALOR")
+            ?.id,
+        chave: "JUROS_ATRASO_VALOR",
+        valor: jurosAtrasoValorController.text,
+        tipoReferencia: "EMPRESA",
+        referenciaId: empresaId,
+      ),
+    );
+
+    if (sucesso1 &&
+        sucesso2 &&
+        sucesso3 &&
+        sucesso4 &&
+        sucesso5 &&
+        sucesso6 &&
+        sucesso7) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text("Parâmetros da empresa salvos com sucesso!"),
         backgroundColor: Colors.green,
@@ -169,8 +230,8 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
     if (_atualizandoObrigarVendedorVenda) return;
     final parametroProvider =
         Provider.of<ParametroProvider>(context, listen: false);
-    final parametro = parametroProvider
-        .buscarParametroEmpresaChave("OBRIGAR_VENDEDOR_VENDA");
+    final parametro =
+        parametroProvider.buscarParametroEmpresaChave("OBRIGAR_VENDEDOR_VENDA");
 
     if (parametro?.id == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -240,8 +301,8 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
         permitirVendedorTodosClientes = !value;
       });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            "Erro ao atualizar parâmetro de acesso a todos os clientes."),
+        content:
+            Text("Erro ao atualizar parâmetro de acesso a todos os clientes."),
         backgroundColor: Colors.red,
       ));
     }
@@ -255,6 +316,7 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
   void dispose() {
     limiteContasReceberController.dispose();
     jurosPadraoController.dispose();
+    jurosAtrasoValorController.dispose();
     super.dispose();
   }
 
@@ -306,6 +368,65 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
                           const Icon(Icons.money, color: AppTheme.primaryColor),
                     ),
                     const SizedBox(height: 20),
+                    SwitchListTile(
+                      title: const Text("Cobrar juros por atraso"),
+                      activeColor: AppTheme.primaryColor,
+                      value: cobrarJurosAtraso,
+                      onChanged: (value) {
+                        setState(() {
+                          cobrarJurosAtraso = value;
+                        });
+                      },
+                    ),
+                    if (cobrarJurosAtraso) ...[
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<String>(
+                        value: (jurosAtrasoTipo == "PERCENTUAL" ||
+                                jurosAtrasoTipo == "VALOR_FIXO")
+                            ? jurosAtrasoTipo
+                            : "PERCENTUAL",
+                        decoration: const InputDecoration(
+                          labelText: "Tipo de juros por atraso",
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: "PERCENTUAL",
+                            child: Text("Percentual"),
+                          ),
+                          DropdownMenuItem(
+                            value: "VALOR_FIXO",
+                            child: Text("Valor fixo"),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() {
+                            jurosAtrasoTipo = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      InputCustomizado(
+                        controller: jurosAtrasoValorController,
+                        labelText: jurosAtrasoTipo == "VALOR_FIXO"
+                            ? "Valor de juros por atraso"
+                            : "Percentual de juros por atraso",
+                        type: TextInputType.number,
+                        inputFormatters: [
+                          CurrencyInputFormatter(
+                            leadingSymbol: '',
+                            useSymbolPadding: false,
+                            mantissaLength:
+                                jurosAtrasoTipo == "VALOR_FIXO" ? 2 : 1,
+                            thousandSeparator: ThousandSeparator.None,
+                          )
+                        ],
+                        leadingIcon: const Icon(Icons.percent,
+                            color: AppTheme.primaryColor),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                     SwitchListTile(
                       title: const Text("Permitir baixa parcial de parcelas"),
                       activeColor: AppTheme.primaryColor,
