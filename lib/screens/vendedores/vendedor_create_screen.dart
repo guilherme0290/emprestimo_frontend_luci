@@ -14,6 +14,7 @@ import 'package:emprestimos_app/widgets/dialog_widget.dart';
 import 'package:emprestimos_app/widgets/input_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lottie/lottie.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:provider/provider.dart';
 import '../../widgets/custom_button.dart';
@@ -587,9 +588,10 @@ class _VendedorFormScreenState extends State<VendedorFormScreen> {
     if (_permissoes.isEmpty) {
       return AppBackground(
         child: Center(
-          child: Text(
-            "Nenhuma permissão encontrada.",
-            style: AppTheme.titleStyle.copyWith(fontSize: 16),
+          child: Lottie.asset(
+            'assets/img/no-results.json',
+            height: 180,
+            repeat: true,
           ),
         ),
       );

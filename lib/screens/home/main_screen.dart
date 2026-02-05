@@ -1,7 +1,9 @@
 import 'package:emprestimos_app/models/planos.dart';
 import 'package:emprestimos_app/providers/empresa_provider.dart';
 import 'package:emprestimos_app/screens/cobranca/resumo_cobranca.dart';
+import 'package:emprestimos_app/screens/cobranca/cobrancas_hoje_screen.dart';
 import 'package:emprestimos_app/screens/localizar_parcela/localizar_parcela.dart';
+import 'package:emprestimos_app/screens/relatorio/relatorio_recebimentos_screen.dart';
 import 'package:emprestimos_app/screens/vendedores/vendedor_list_screen.dart';
 import 'package:emprestimos_app/screens/config/config_screen.dart';
 import 'package:emprestimos_app/core/theme/theme.dart';
@@ -69,14 +71,24 @@ class _MainScreenState extends State<MainScreen> {
       {required bool isVendedor}) {
     final menus = <Map<String, dynamic>>[
       {
-        "icon": Icons.summarize,
-        "label": "Relatório de Parcelas",
-        "widget": const ResumoCobrancasScreen()
+        "icon": Icons.event,
+        "label": "Cobranças de Hoje",
+        "widget": const CobrancasHojeScreen()
       },
       {
         "icon": Icons.search,
-        "label": "Localizar Parcelas",
+        "label": "Localizar Cobrança",
         "widget": const ContasReceberSearchScreen()
+      },
+      {
+        "icon": Icons.summarize,
+        "label": "Resumo Cobranças",
+        "widget": const ResumoCobrancasScreen()
+      },
+      {
+        "icon": Icons.receipt_long,
+        "label": "Relatório de Recebimentos",
+        "widget": const RelatorioRecebimentosScreen()
       },
       if (!isVendedor)
         {

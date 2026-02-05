@@ -3,6 +3,7 @@ import 'package:emprestimos_app/core/theme/theme.dart';
 import 'package:emprestimos_app/models/cidade.dart';
 import 'package:emprestimos_app/providers/cidade_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 class CidadeDropdown extends StatefulWidget {
@@ -82,7 +83,13 @@ class _CidadeDropdownState extends State<CidadeDropdown> {
             ),
             showSearchBox: true,
             emptyBuilder: (context, searchEntry) =>
-                const Center(child: Text("Nenhum cidade encontrada")),
+                Center(
+                  child: Lottie.asset(
+                    'assets/img/no-results.json',
+                    height: 140,
+                    repeat: true,
+                  ),
+                ),
             searchFieldProps: TextFieldProps(
               decoration: InputDecoration(
                 labelText: "Pesquisar cidade...",

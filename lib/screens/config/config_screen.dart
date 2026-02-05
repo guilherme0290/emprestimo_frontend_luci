@@ -104,7 +104,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                   if (_isEmpresa)
                     _buildCardTile(
                       icon: Icons.message,
-                      title: "Mensagens de Cobrança",
+                      title: "Mensagens Automáticas de Cobrança",
                       color: AppTheme.primaryColor,
                       onTap: () {
                         Navigator.push(

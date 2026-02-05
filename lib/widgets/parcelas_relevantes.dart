@@ -2,6 +2,7 @@ import 'package:emprestimos_app/core/util.dart';
 import 'package:emprestimos_app/models/parcela_resumo.dart';
 import 'package:emprestimos_app/screens/emprestimos/emprestimo_detail_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 
 class ParcelasResumoCard extends StatelessWidget {
   final Future<void> Function() fetchData;
@@ -33,14 +34,11 @@ class ParcelasResumoCard extends StatelessWidget {
                 child: isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : parcelas.isEmpty
-                        ? const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Text(
-                                "Nenhuma parcela pendente 🎉",
-                                style:
-                                    TextStyle(fontSize: 16, color: Colors.grey),
-                              ),
+                        ? Center(
+                            child: Lottie.asset(
+                              'assets/img/no-results.json',
+                              height: 160,
+                              repeat: true,
                             ),
                           )
                         : ListView.builder(

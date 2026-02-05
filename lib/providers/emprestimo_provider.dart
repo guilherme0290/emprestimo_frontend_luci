@@ -713,6 +713,7 @@ class ContasReceberProvider with ChangeNotifier {
     String? dataInicio,
     String? dataFim,
     String? vencimentoOuPagamento,
+    String? tipoPagamento,
     int? caixaId,
     int? vendedorId,
   }) async {
@@ -726,6 +727,7 @@ class ContasReceberProvider with ChangeNotifier {
       final response =
           await Api.dio.get("/parcelas/agrupamento", queryParameters: {
         if (status != null) 'status': status,
+        if (tipoPagamento != null) 'tipoPagamento': tipoPagamento,
         if (dataInicio != null)
           'dataInicio': FormatData.formatarDataYYYYAADD(dataInicio),
         if (dataFim != null)
@@ -752,6 +754,7 @@ class ContasReceberProvider with ChangeNotifier {
           dataInicio: dataInicio,
           dataFim: dataFim,
           vencimentoOuPagamento: vencimentoOuPagamento,
+          tipoPagamento: tipoPagamento,
           caixaId: caixaId,
           vendedorId: vendedorId,
         );
@@ -815,6 +818,7 @@ class ContasReceberProvider with ChangeNotifier {
         'dataInicio': f.dataInicio,
         'dataFim': f.dataFim,
         'vencimentoOuPagamento': f.vencimentoOuPagamento,
+        'tipoPagamento': f.tipoPagamento,
         'caixaId': f.caixaId?.toString(),
         'vendedorId': f.vendedorId?.toString(),
       });

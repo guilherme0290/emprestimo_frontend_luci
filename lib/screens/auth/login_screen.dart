@@ -25,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   late final AnimationController _controller;
   late final Animation<double> _animation;
+  bool _biometriaJaSolicitada = false;
 
   void _login() async {
     if (emailController.text.isEmpty || senhaController.text.isEmpty) {
@@ -85,6 +86,16 @@ class _LoginScreenState extends State<LoginScreen>
     _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || kIsWeb || _biometriaJaSolicitada) return;
+      final prefs = await SharedPreferences.getInstance();
+      final email = prefs.getString("email");
+      final senha = prefs.getString("senha");
+      if (!mounted || email == null || senha == null) return;
+      _biometriaJaSolicitada = true;
+      _loginComBiometria();
+    });
   }
 
   @override

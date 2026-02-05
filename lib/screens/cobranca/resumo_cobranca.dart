@@ -1,10 +1,12 @@
 // Tela principal com filtro e resumo por caixa
 import 'package:emprestimos_app/core/data_utils.dart';
 import 'package:emprestimos_app/core/util.dart';
+import 'package:emprestimos_app/models/caixa.dart';
 import 'package:emprestimos_app/models/vendedor.dart';
 import 'package:emprestimos_app/providers/caixa_provider.dart';
 import 'package:emprestimos_app/providers/empresa_provider.dart';
 import 'package:emprestimos_app/providers/emprestimo_provider.dart';
+import 'package:emprestimos_app/providers/auth_provider.dart';
 import 'package:emprestimos_app/providers/vendedor_provider.dart';
 import 'package:emprestimos_app/screens/cobranca/resumo_cobranca_detalhe_agrupamento.dart';
 import 'package:emprestimos_app/widgets/custom_button.dart';
@@ -47,8 +49,16 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width > 800;
+    final authProvider = Provider.of<AuthProvider>(context);
+    final isVendedor = authProvider.loginResponse?.role == "VENDEDOR";
     final vendedores = Provider.of<VendedorProvider>(context).vendedores;
     final caixas = Provider.of<CaixaProvider>(context).caixas;
+    final caixaValue = caixas.any((c) => c.descricao == caixaSelecionado)
+        ? caixaSelecionado
+        : null;
+    final vendedorValue = vendedores.any((v) => v.nome == vendedorSelecionado)
+        ? vendedorSelecionado
+        : null;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Resumo de Cobranças'),
@@ -95,7 +105,7 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
             const SizedBox(height: 12),
             if (caixas.isNotEmpty)
               DropdownButtonFormField<String>(
-                value: caixaSelecionado,
+                value: caixaValue,
                 items: caixas
                     .map((caixa) => DropdownMenuItem(
                           value: caixa.descricao,
@@ -104,13 +114,13 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
                     .toList(),
                 onChanged: (val) => setState(() => caixaSelecionado = val),
                 decoration: const InputDecoration(
-                  labelText: 'Responsável/caixa',
+                  labelText: 'Caixa',
                 ),
               ),
-            if (vendedores.isNotEmpty) ...[
+            if (!isVendedor && vendedores.isNotEmpty) ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: vendedorSelecionado,
+                value: vendedorValue,
                 items: vendedores
                     .map((v) => DropdownMenuItem(
                           value: v.nome,
@@ -171,7 +181,9 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
                         dataFim: dataFim?.toIso8601String(),
                         vencimentoOuPagamento: vencOuPgto,
                         caixaId: _buscarIdCaixaSelecionado(context),
-                        vendedorId: _buscarIdVendedorSelecionado(context),
+                        vendedorId: isVendedor
+                            ? authProvider.loginResponse?.usuario.id
+                            : _buscarIdVendedorSelecionado(context),
                       );
                     },
                   ),
@@ -221,23 +233,11 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
     }
 
     if (dados.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Lottie.asset(
-              'assets/img/no-results.json',
-              height: 180,
-              repeat: true,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Nenhum resultado encontrado para os filtros atuais.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-          ],
+      return Center(
+        child: Lottie.asset(
+          'assets/img/no-results.json',
+          height: 180,
+          repeat: true,
         ),
       );
     }
@@ -361,6 +361,12 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
     final caixas = Provider.of<CaixaProvider>(context, listen: false).caixas;
     final caixa = caixas.firstWhere(
       (c) => c.descricao == caixaSelecionado,
+      orElse: () => Caixa(
+        id: null,
+        descricao: '',
+        valorInicial: 0,
+        defaultCaixa: false,
+      ),
     );
     return caixa.id;
   }
@@ -371,6 +377,13 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
         Provider.of<VendedorProvider>(context, listen: false).vendedores;
     final vendedor = vendedores.firstWhere(
       (v) => v.nome == vendedorSelecionado,
+      orElse: () => Vendedor(
+        id: null,
+        nome: '',
+        cpf: '',
+        telefone: '',
+        email: '',
+      ),
     );
     return vendedor.id;
   }

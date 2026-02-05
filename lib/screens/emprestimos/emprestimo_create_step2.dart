@@ -73,55 +73,19 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
       text: Util.formatarMoeda(valorParcela),
     );
 
+    final primeiroVencimento = dataPrimeiroVencimento ??
+        _calcularPrimeiroVencimento(dataContrato, tipo);
     final temp = <ParcelaSimulada>[];
 
-    DateTime dataBase;
-
-    // Definição da 1ª data
-    if (dataPrimeiroVencimento != null) {
-      dataBase = dataPrimeiroVencimento;
-    } else {
-      // fallback: usa dataContrato + regra de parcelamento
-      dataBase = dataContrato;
-      if (tipo == "MENSAL") {
-        dataBase = DateTime(dataBase.year, dataBase.month + 1, dataBase.day);
-      } else if (tipo == "QUINZENAL") {
-        dataBase = dataBase.add(const Duration(days: 15));
-      } else if (tipo == "SEMANAL") {
-        dataBase = dataBase.add(const Duration(days: 7));
-      } else if (tipo == "DIARIO") {
-        dataBase = dataBase.add(const Duration(days: 1));
-      }
-    }
-
     for (int i = 1; i <= n; i++) {
-      if (i > 1) {
-        if (tipo == "MENSAL") {
-          if (vencimentoFixo && dataPrimeiroVencimento != null) {
-            // mantém o "dia do mês" do primeiro vencimento
-            dataBase = DateTime(
-              dataBase.year,
-              dataBase.month + 1,
-              dataPrimeiroVencimento.day,
-            );
-          } else {
-            dataBase =
-                DateTime(dataBase.year, dataBase.month + 1, dataBase.day);
-          }
-        } else if (tipo == "QUINZENAL") {
-          dataBase = dataBase.add(const Duration(days: 15));
-        } else if (tipo == "SEMANAL") {
-          dataBase = dataBase.add(const Duration(days: 7));
-        } else if (tipo == "DIARIO") {
-          dataBase = dataBase.add(const Duration(days: 1));
-        }
-      }
+      final dataVencimento =
+          _calcularDataVencimento(i, primeiroVencimento, tipo);
 
       temp.add(
         ParcelaSimulada(
           numero: i,
           valor: valorParcela,
-          dataVencimento: dataBase,
+          dataVencimento: dataVencimento,
         ),
       );
     }
@@ -132,24 +96,84 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
     });
   }
 
+  DateTime _calcularPrimeiroVencimento(DateTime dataContrato, String tipo) {
+    switch (tipo) {
+      case "MENSAL":
+        return DateTime(
+            dataContrato.year, dataContrato.month + 1, dataContrato.day);
+      case "SEMANAL":
+        return dataContrato.add(const Duration(days: 7));
+      case "DIARIO":
+        return dataContrato.add(const Duration(days: 1));
+      case "QUINZENAL":
+        return dataContrato.add(const Duration(days: 15));
+      default:
+        return dataContrato.add(const Duration(days: 1));
+    }
+  }
+
+  DateTime _calcularDataVencimento(
+      int indice, DateTime primeiroVencimento, String tipo) {
+    if (indice == 1) return primeiroVencimento;
+
+    if (widget.emprestimoDraft.vencimentoFixo && tipo == "MENSAL") {
+      final base = DateTime(
+          primeiroVencimento.year, primeiroVencimento.month + indice - 1);
+      final diaFixo = primeiroVencimento.day;
+      final ultimoDiaMes = DateTime(base.year, base.month + 1, 0).day;
+      final dia = diaFixo <= ultimoDiaMes ? diaFixo : ultimoDiaMes;
+      return DateTime(base.year, base.month, dia);
+    }
+
+    switch (tipo) {
+      case "MENSAL":
+        return _addMonthsClamp(primeiroVencimento, indice - 1);
+      case "SEMANAL":
+        return primeiroVencimento.add(Duration(days: 7 * (indice - 1)));
+      case "DIARIO":
+        return primeiroVencimento.add(Duration(days: indice - 1));
+      case "QUINZENAL":
+        return primeiroVencimento.add(Duration(days: 15 * (indice - 1)));
+      default:
+        return primeiroVencimento.add(Duration(days: indice - 1));
+    }
+  }
+
+  DateTime _addMonthsClamp(DateTime base, int addMonths) {
+    final targetYear = base.year + ((base.month - 1 + addMonths) ~/ 12);
+    final targetMonth = ((base.month - 1 + addMonths) % 12) + 1;
+    final lastDay = DateTime(targetYear, targetMonth + 1, 0).day;
+    final day = base.day <= lastDay ? base.day : lastDay;
+    return DateTime(targetYear, targetMonth, day);
+  }
+
+  void _aplicarValorParcela(double novoValor) {
+    if (novoValor <= 0) return;
+    setState(() {
+      for (final p in _parcelasSimuladas) {
+        p.valor = novoValor;
+      }
+      _recalcularJurosPorParcelas();
+    });
+  }
+
+  void _recalcularJurosPorParcelas() {
+    final somaParcelas =
+        _parcelasSimuladas.fold<double>(0.0, (s, p) => s + p.valor);
+    final valorContasReceber = widget.emprestimoDraft.valor;
+    if (valorContasReceber <= 0) return;
+    final novoJuros =
+        ((somaParcelas - valorContasReceber) / valorContasReceber) * 100;
+    _jurosCalculado = novoJuros;
+  }
+
   /// 🔹 Recalcula a taxa de juros com base no novo valor da parcela
   void _recalcularJuros() {
     double novoValorParcela = Util.removerMascaraValor(_parcelaController.text);
 
     if (novoValorParcela <= 0) return;
 
-    final valorContasReceber = widget.emprestimoDraft.valor;
-    final numParcelas = widget.emprestimoDraft.numeroParcelas;
-
-    // Calculando os novos juros com a fórmula reversa
-    double novoJuros =
-        (((novoValorParcela * numParcelas) - valorContasReceber) /
-                valorContasReceber) *
-            100;
-
-    setState(() {
-      _jurosCalculado = novoJuros;
-    });
+    _aplicarValorParcela(novoValorParcela);
   }
 
   @override
@@ -309,6 +333,7 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
             elevation: 3,
             margin: const EdgeInsets.symmetric(vertical: 6),
             child: ListTile(
+              onTap: () => _editarParcela(index),
               leading: CircleAvatar(
                 backgroundColor: AppTheme.secondaryColor,
                 child: Text(
@@ -317,14 +342,14 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
                 ),
               ),
               title: Text(
-                Util.formatarMoeda(
-                    Util.removerMascaraValor(_parcelaController.text)),
+                Util.formatarMoeda(parc.valor),
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               subtitle: Text(
                 "Vencimento: ${FormatData.formatarDataCompleta(parc.dataVencimento.toString())}",
                 style: const TextStyle(color: Colors.grey),
               ),
+              trailing: const Icon(Icons.edit, size: 18, color: Colors.grey),
             ),
           );
         },
@@ -502,6 +527,7 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
 
     widget.emprestimoDraft.juros = _jurosCalculado;
     widget.emprestimoDraft.cliente = _clienteSelecionado;
+    widget.emprestimoDraft.parcelas = _parcelasSimuladas;
 
     final novoContasReceber =
         await emprestimoProvider.criarContasReceber(widget.emprestimoDraft);
@@ -525,6 +551,91 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
       Navigator.pop(context);
       Navigator.pop(context, novoContasReceber);
     }
+  }
+
+  Future<void> _editarParcela(int index) async {
+    final parc = _parcelasSimuladas[index];
+    final controller = TextEditingController(
+      text: Util.formatarMoeda(parc.valor),
+    );
+    DateTime dataSelecionada = parc.dataVencimento;
+
+    final resultado = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Editar parcela ${parc.numero}"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: "Valor da parcela",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: dataSelecionada,
+                    firstDate: DateTime(2022),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    dataSelecionada = picked;
+                  }
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: "Data de vencimento",
+                    border: OutlineInputBorder(),
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      FormatData.formatarDataCompletaPadrao(dataSelecionada),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancelar"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final valor = Util.removerMascaraValor(controller.text);
+                Navigator.pop(context, {
+                  'valor': valor,
+                  'dataVencimento': dataSelecionada,
+                });
+              },
+              child: const Text("Salvar"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (resultado == null) return;
+    final novoValor = resultado['valor'] as double? ?? 0;
+    final novaData = resultado['dataVencimento'] as DateTime?;
+    if (novoValor <= 0 || novaData == null) return;
+    setState(() {
+      _parcelasSimuladas[index] = ParcelaSimulada(
+        numero: parc.numero,
+        valor: novoValor,
+        dataVencimento: novaData,
+      );
+      _recalcularJurosPorParcelas();
+    });
   }
 }
 

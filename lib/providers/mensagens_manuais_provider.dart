@@ -52,7 +52,8 @@ class MensagensManuaisProvider with ChangeNotifier {
     }
   }
 
-  Future<void> salvarMensagens(List<MensagemManual> mensagensAtualizadas) async {
+  Future<void> salvarMensagens(
+      List<MensagemManual> mensagensAtualizadas) async {
     _isLoading = true;
     _errorMessage = null;
     _successMessage = null;

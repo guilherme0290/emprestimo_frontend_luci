@@ -5,6 +5,7 @@
 - `assets/` holds images and fonts used by the UI.
 - `test/` contains Flutter tests (currently `test/widget_test.dart`).
 - `android/`, `ios/`, and `web/` contain platform-specific integration and build files.
+- Backend (repo path): `/home/guilherme/IdeaProjects/emprestimo`
 
 ## Frontend Project Map
 - Entry point: `lib/main.dart`

@@ -1,4 +1,5 @@
 import 'package:emprestimos_app/models/cliente.dart';
+import 'package:emprestimos_app/models/parcela_simulada.dart';
 import 'package:emprestimos_app/models/penhora.dart';
 
 class NovoContasReceberDTO {
@@ -14,6 +15,7 @@ class NovoContasReceberDTO {
   DateTime? dataContrato;
   bool vencimentoFixo;
   String? descricao;
+  List<ParcelaSimulada>? parcelas;
 
   NovoContasReceberDTO(
       {required this.valor,
@@ -27,7 +29,8 @@ class NovoContasReceberDTO {
       required this.dataContrato,
       this.dataPrimeiroVencimento,
       this.vencimentoFixo = false,
-      this.descricao});
+      this.descricao,
+      this.parcelas});
 
   Map<String, dynamic> toJson() {
     return {
@@ -43,6 +46,7 @@ class NovoContasReceberDTO {
       'dataContrato': dataContrato?.toIso8601String(),
       'vencimentoFixo': vencimentoFixo,
       'descricao': descricao,
+      if (parcelas != null) 'parcelas': parcelas!.map((p) => p.toJson()).toList(),
     };
   }
 }

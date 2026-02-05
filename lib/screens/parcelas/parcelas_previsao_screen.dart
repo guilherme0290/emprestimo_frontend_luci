@@ -6,6 +6,7 @@ import 'package:emprestimos_app/screens/emprestimos/emprestimo_detail_screen.dar
 import 'package:emprestimos_app/widgets/background_screens_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 class ParcelasPrevisaoScreen extends StatefulWidget {
@@ -70,7 +71,13 @@ class _ParcelasPrevisaoScreenState extends State<ParcelasPrevisaoScreen> {
           : parcelaProvider.errorMessage != null
               ? Center(child: Text(parcelaProvider.errorMessage!))
               : agrupadas.isEmpty
-                  ? const Center(child: Text("Nenhuma parcela encontrada."))
+                  ? Center(
+                      child: Lottie.asset(
+                        'assets/img/no-results.json',
+                        height: 180,
+                        repeat: true,
+                      ),
+                    )
                   : Column(
                       children: [
                         Padding(

@@ -116,6 +116,7 @@ class _MensagensManuaisScreenState extends State<MensagensManuaisScreen> {
         ? FormatData.formatarDataHora(parcela.dataPagamento)
         : "hoje";
     final cobrador = conta.vendedorNome ?? "";
+    final nomeEmpresa = _empresa?.responsavel ?? "";
 
     final totalPago = conta.parcelas
         .expand((p) => p.baixas ?? const [])
@@ -123,6 +124,10 @@ class _MensagensManuaisScreenState extends State<MensagensManuaisScreen> {
     final saldoDevedor = Util.formatarMoeda(conta.valor - totalPago);
     final parcelasEmAtraso =
         conta.parcelas.where((p) => p.status == "ATRASADA").length.toString();
+    final totalParcelas = conta.parcelas.length;
+    final progressoParcela =
+        "${parcela.numeroParcela}/${totalParcelas == 0 ? 1 : totalParcelas}";
+    final totalPagoFormatado = Util.formatarMoeda(totalPago);
     final saldoEmAtraso = Util.formatarMoeda(
       conta.parcelas
           .where((p) => p.status == "ATRASADA")
@@ -142,7 +147,10 @@ class _MensagensManuaisScreenState extends State<MensagensManuaisScreen> {
       "cobrador": cobrador,
       "saldo_devedor": saldoDevedor,
       "saldo_em_atraso": saldoEmAtraso,
+      "total_pago": totalPagoFormatado,
       "parcelas_em_atraso": parcelasEmAtraso,
+      "progresso_parcela": progressoParcela,
+      "empresa": nomeEmpresa,
       "saudacao": MensagemUtils.obterSaudacao(),
     };
   }

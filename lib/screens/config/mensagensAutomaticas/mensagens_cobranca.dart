@@ -455,59 +455,30 @@ class _MensagensCobrancaScreenState extends State<MensagensCobrancaScreen>
                       child: Column(
                         children: [
                           Card(
-                            color: Colors.grey[100],
-                            elevation: 1,
-                            margin: const EdgeInsets.only(bottom: 20),
+                            elevation: 2,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
-                            child: const Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Column(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    "🔖 Você pode usar os seguintes placeholders nas mensagens:",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                  Icon(Icons.info_outline,
+                                      color: AppTheme.primaryColor),
+                                  const SizedBox(width: 12),
+                                  const Expanded(
+                                    child: Text(
+                                      "Ao vincular o WhatsApp, o app passa a enviar cobranças automaticamente "
+                                      "no dia do vencimento, 1 dia antes do vencimento e quando a parcela estiver em atraso. "
+                                      "Você pode personalizar as mensagens abaixo usando as tags disponíveis.",
+                                      style: TextStyle(fontSize: 14),
                                     ),
-                                  ),
-                                  SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      Icon(Icons.label_outline, size: 20),
-                                      SizedBox(width: 8),
-                                      Expanded(
-                                          child: Text(
-                                              "{{nome}} → Nome do cliente")),
-                                    ],
-                                  ),
-                                  SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Icon(Icons.attach_money_outlined,
-                                          size: 20),
-                                      SizedBox(width: 8),
-                                      Expanded(
-                                          child: Text(
-                                              "{{valor}} → Valor da parcela")),
-                                    ],
-                                  ),
-                                  SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Icon(Icons.event_outlined, size: 20),
-                                      SizedBox(width: 8),
-                                      Expanded(
-                                          child: Text(
-                                              "{{data_vencimento}} → Data de vencimento da parcela")),
-                                    ],
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 12),
                           _buildMensagemCard(
                             tipo: TipoMensagemCobranca.antesVencimento,
                             titulo: "Antes do vencimento",

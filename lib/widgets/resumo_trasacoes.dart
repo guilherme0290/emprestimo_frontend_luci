@@ -12,6 +12,7 @@ import 'package:emprestimos_app/widgets/subtotal_transacoes_widget.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 class TransacoesResumoCard extends StatefulWidget {
@@ -287,10 +288,11 @@ class _TransacoesResumoCardState extends State<TransacoesResumoCard>
         : transacoes.where((t) => t.tipo == tipoFiltro).toList();
 
     if (transacoesFiltradas.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Text("Nenhuma transação"),
+      return Center(
+        child: Lottie.asset(
+          'assets/img/no-results.json',
+          height: 160,
+          repeat: true,
         ),
       );
     }

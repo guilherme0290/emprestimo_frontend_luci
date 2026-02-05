@@ -1,6 +1,7 @@
 import 'package:emprestimos_app/providers/score_provider.dart';
 import 'package:emprestimos_app/widgets/background_screens_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 class HistoricoScoreScreen extends StatefulWidget {
@@ -37,8 +38,12 @@ class _HistoricoScoreScreenState extends State<HistoricoScoreScreen> {
           }
 
           if (provider.historicoScore.isEmpty) {
-            return const Center(
-              child: Text("Nenhuma alteração de score encontrada."),
+            return Center(
+              child: Lottie.asset(
+                'assets/img/no-results.json',
+                height: 180,
+                repeat: true,
+              ),
             );
           }
 

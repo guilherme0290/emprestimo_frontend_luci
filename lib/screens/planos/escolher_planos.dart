@@ -586,7 +586,13 @@ class _EscolherPlanoScreenState extends State<EscolherPlanoScreen> {
                     });
                   }
                 },
-                child: Text(isCustom ? "Solicitar contato" : "Assinar"),
+                child: Text(
+                  isCustom
+                      ? "Solicitar contato"
+                      : (plano.nome == "Básico" || plano.nome == "Premium")
+                          ? "Testar Grátis"
+                          : "Assinar",
+                ),
               ),
             ),
           ],

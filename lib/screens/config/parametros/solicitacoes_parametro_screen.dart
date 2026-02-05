@@ -5,6 +5,7 @@ import 'package:emprestimos_app/widgets/background_screens_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:emprestimos_app/models/aprovacao_parametro.dart';
 
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 class SolicitacoesParametrosScreen extends StatefulWidget {
@@ -151,7 +152,13 @@ class _SolicitacoesParametrosScreenState
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _pendentes.isEmpty
-              ? const Center(child: Text("Nenhuma solicitação pendente."))
+              ? Center(
+                  child: Lottie.asset(
+                    'assets/img/no-results.json',
+                    height: 180,
+                    repeat: true,
+                  ),
+                )
               : AppBackground(
                   child: ListView.builder(
                     itemCount: _pendentes.length,

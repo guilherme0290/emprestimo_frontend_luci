@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:emprestimos_app/core/data_utils.dart';
 import 'package:emprestimos_app/core/util.dart';
+import 'package:lottie/lottie.dart';
 
 enum GroupByOption { none, caixa, vendedor }
 
@@ -207,19 +208,11 @@ class _DetalhamentoAgrupamentoScreenState
                   ),
                   const SizedBox(height: 8),
                   if (itensFiltrados.isEmpty)
-                    Card(
-                      elevation: 0,
-                      color: Colors.grey.shade100,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      child: const Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                        child: Text(
-                          'Nenhuma parcela encontrada para os filtros atuais.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey),
-                        ),
+                    Center(
+                      child: Lottie.asset(
+                        'assets/img/no-results.json',
+                        height: 180,
+                        repeat: true,
                       ),
                     )
                   else
