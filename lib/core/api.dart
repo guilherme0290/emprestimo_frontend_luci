@@ -13,7 +13,7 @@ class Api {
   static Future<bool>? _refreshingFuture;
   static final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: urlHomologacao, // Alterar para o IP do servidor
+      baseUrl: urlProducao, // Alterar para o IP do servidor
       connectTimeout: const Duration(seconds: 1000),
       receiveTimeout: const Duration(seconds: 1000),
     ),
