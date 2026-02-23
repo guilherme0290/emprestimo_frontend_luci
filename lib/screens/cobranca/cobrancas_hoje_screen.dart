@@ -138,7 +138,7 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
                       .toList(),
                   onChanged: (val) => setState(() => caixaIdSelecionado = val),
                   decoration: const InputDecoration(
-                    labelText: 'Caixa',
+                    labelText: 'Responsavel',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -156,7 +156,7 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
                       ? null
                       : (val) => setState(() => vendedorIdSelecionado = val),
                   decoration: const InputDecoration(
-                    labelText: 'Vendedor',
+                    labelText: 'Cobrador',
                     border: OutlineInputBorder(),
                   ),
                 ),

@@ -161,7 +161,7 @@ class _RelatorioRecebimentosScreenState
                       .toList(),
                   onChanged: (val) => setState(() => caixaIdSelecionado = val),
                   decoration: const InputDecoration(
-                    labelText: 'Caixa',
+                    labelText: 'Responsavel',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -179,7 +179,7 @@ class _RelatorioRecebimentosScreenState
                       ? null
                       : (val) => setState(() => vendedorIdSelecionado = val),
                   decoration: const InputDecoration(
-                    labelText: 'Vendedor',
+                    labelText: 'Cobrador',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -411,7 +411,7 @@ class _RelatorioRecebimentosScreenState
             DataColumn(label: Text('Valor Recebido')),
             DataColumn(label: Text('Criado por')),
             DataColumn(label: Text('Recebido por')),
-            DataColumn(label: Text('Caixa')),
+            DataColumn(label: Text('Responsavel')),
             DataColumn(label: Text('Detalhar')),
           ],
           rows: [

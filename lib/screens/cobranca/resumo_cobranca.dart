@@ -114,7 +114,7 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
                     .toList(),
                 onChanged: (val) => setState(() => caixaSelecionado = val),
                 decoration: const InputDecoration(
-                  labelText: 'Caixa',
+                  labelText: 'Responsavel',
                 ),
               ),
             if (!isVendedor && vendedores.isNotEmpty) ...[
@@ -128,7 +128,7 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
                         ))
                     .toList(),
                 onChanged: (val) => setState(() => vendedorSelecionado = val),
-                decoration: const InputDecoration(labelText: 'Vendedor'),
+                decoration: const InputDecoration(labelText: 'Cobrador'),
               ),
             ],
             const SizedBox(height: 16),
@@ -252,8 +252,8 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
       child: Column(
         children: [
           Column(
-        children: [
-          SingleChildScrollView(
+            children: [
+              SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
                   headingRowColor: MaterialStateProperty.all(
@@ -285,7 +285,8 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
                           Center(
                             child: Text(
                               totalParcelas.toString(),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
@@ -299,33 +300,33 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
                     ),
                   ],
                 ),
-          ),
-          const SizedBox(height: 12),
-          // Botão de Detalhamento
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.list_alt_outlined),
-              label: const Text('Detalhar (todas as parcelas)'),
-              onPressed: () async {
-                final empresaId =
-                    Provider.of<EmpresaProvider>(context, listen: false)
-                        .empresa!
-                        .id;
-                await provider.buscarDetalhesGeralUsandoUltimoFiltro(
-                    empresaId: empresaId!);
+              ),
+              const SizedBox(height: 12),
+              // Botão de Detalhamento
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.list_alt_outlined),
+                  label: const Text('Detalhar (todas as parcelas)'),
+                  onPressed: () async {
+                    final empresaId =
+                        Provider.of<EmpresaProvider>(context, listen: false)
+                            .empresa!
+                            .id;
+                    await provider.buscarDetalhesGeralUsandoUltimoFiltro(
+                        empresaId: empresaId!);
 
-                if (!mounted) return;
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const DetalhamentoAgrupamentoScreen(),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+                    if (!mounted) return;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DetalhamentoAgrupamentoScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Padding(
