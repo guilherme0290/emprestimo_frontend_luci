@@ -27,6 +27,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../models/emprestimo.dart';
 import '../../models/parcela.dart';
+import '../../providers/empresa_provider.dart';
 import '../../providers/emprestimo_provider.dart';
 import 'package:emprestimos_app/widgets/dialog_parcela.dart';
 
@@ -104,17 +105,22 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen>
   }
 
   Future<void> _carregarMensagensManuais() async {
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final provider =
-          Provider.of<MensagensManuaisProvider>(context, listen: false);
-      await provider.buscarMensagens();
-      if (!mounted) return;
-      setState(() {
-        _mensagensManuais = {
-          for (final msg in provider.mensagens) msg.tipo: msg
-        };
-      });
+    final provider = Provider.of<MensagensManuaisProvider>(context, listen: false);
+    await provider.buscarMensagens();
+    if (!mounted) return;
+    setState(() {
+      _mensagensManuais = {
+        for (final msg in provider.mensagens) msg.tipo: msg,
+      };
     });
+  }
+
+  Future<void> _garantirMensagensManuaisAtualizadas() async {
+    try {
+      await _carregarMensagensManuais();
+    } catch (e) {
+      debugPrint('Erro ao atualizar mensagens manuais: $e');
+    }
   }
 
   String _mensagemManualOuPadrao(
@@ -264,6 +270,8 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen>
   }
 
   void _abrirWhatsapp() async {
+    await _garantirMensagensManuaisAtualizadas();
+
     final parcelasSelecionadas = <ParcelaDTO>[];
     for (int i = 0; i < _selectedParcelas.length; i++) {
       if (_selectedParcelas[i]) {
@@ -291,7 +299,17 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen>
     final String numeroParcela = _formatarNumerosParcelas(parcelasSelecionadas);
     final double valorTotal =
         parcelasSelecionadas.fold(0, (total, p) => total + p.valor);
+    final double saldoParcelaTotal = parcelasSelecionadas.fold(
+      0.0,
+      (total, p) {
+        final pago =
+            (p.baixas ?? const []).fold(0.0, (soma, b) => soma + b.valor);
+        final saldo = p.valor - pago;
+        return total + (saldo > 0 ? saldo : 0.0);
+      },
+    );
     final String valorParcela = Util.formatarMoeda(valorTotal);
+    final String saldoParcela = Util.formatarMoeda(saldoParcelaTotal);
     final String dataVencimento = _formatarDatasVencimentoParcelas(
       parcelasSelecionadas,
       extenso: true,
@@ -321,15 +339,39 @@ Por favor, nos informe sobre o pagamento ou entre em contato para mais informaç
 Aguardamos seu retorno!
 """;
     final String totalContasReceber = Util.formatarMoeda(_emprestimo!.valor);
+    final String saldoDevedor = Util.formatarMoeda(_calcularSaldoDevedorContrato());
+    final String totalPagoContrato =
+        Util.formatarMoeda(_calcularTotalPagoContrato());
+    final String progressoParcela =
+        _formatarProgressoParcelas(parcelasSelecionadas);
+    final String parcelasEmAtraso = _contarParcelasEmAtraso();
+    final String primeiroNome = Util.getPrimeiroNome(nomeCliente);
+    final String contratoId = _emprestimo!.id.toString();
+    final String cobrador = (_emprestimo!.vendedorNome ?? '').trim().isEmpty
+        ? 'Não informado'
+        : _emprestimo!.vendedorNome!.trim();
+    final String empresaNome = _obterNomeEmpresaParaMensagem();
     final String mensagemBase = _mensagemManualOuPadrao(
         TipoMensagemManual.cobrancaAtraso, mensagemPadraoFallback);
     final String mensagemPadrao = _aplicarTagsMensagem(mensagemBase, {
       "nome": nomeCliente,
+      "primeiro_nome": primeiroNome,
       "numero_parcela": numeroParcela,
       "valor_parcela": valorParcela,
+      "valor_pago": 'R\$ 0,00',
+      "total_pago": totalPagoContrato,
+      "saldo_parcela": saldoParcela,
+      "saldo_devedor": saldoDevedor,
+      "saldo_em_atraso": saldoParcela,
       "valor_total": totalContasReceber,
       "vencimento": dataVencimentoCurta,
       "vencimento_extenso": dataVencimento,
+      "contrato_id": contratoId,
+      "progresso_parcela": progressoParcela,
+      "empresa": empresaNome,
+      "cobrador": cobrador,
+      "parcelas_em_atraso": parcelasEmAtraso,
+      "data_pagamento": "",
       "saudacao": MensagemUtils.obterSaudacao(),
     });
 
@@ -367,13 +409,30 @@ Aguardamos seu retorno!
                   .map((b) => b.dataPagamento ?? '')
                   .where((d) => d.isNotEmpty),
             ])
+        .map(FormatData.formatarDataHora)
+        .where((d) => d.trim().isNotEmpty)
         .toSet()
         .toList()
       ..sort();
     if (datas.isEmpty) {
       return "";
     }
-    return datas.map(FormatData.formatarDataHora).join(", ");
+    return datas.join(", ");
+  }
+
+  double _calcularTotalPagoContrato() {
+    if (_emprestimo == null) return 0.0;
+    return _emprestimo!.parcelas.fold(
+      0.0,
+      (total, p) =>
+          total + (p.baixas ?? const []).fold(0.0, (soma, b) => soma + b.valor),
+    );
+  }
+
+  double _calcularSaldoDevedorContrato() {
+    if (_emprestimo == null) return 0.0;
+    final saldo = _emprestimo!.valor - _calcularTotalPagoContrato();
+    return saldo > 0 ? saldo : 0.0;
   }
 
   String _formatarNumerosParcelas(List<ParcelaDTO> parcelas) {
@@ -381,6 +440,45 @@ Aguardamos seu retorno!
         parcelas.map((p) => p.numeroParcela).whereType<int>().toList()..sort();
     if (numeros.isEmpty) return "";
     return numeros.join(", ");
+  }
+
+  String _formatarProgressoParcelas(List<ParcelaDTO> parcelas) {
+    final totalParcelas = _emprestimo?.parcelas.length ?? 0;
+    if (parcelas.isEmpty || totalParcelas <= 0) return "";
+    if (parcelas.length == 1) {
+      return "${parcelas.first.numeroParcela}/$totalParcelas";
+    }
+    final numeros =
+        parcelas.map((p) => p.numeroParcela).whereType<int>().toList()..sort();
+    return "${numeros.join(',')}/$totalParcelas";
+  }
+
+  String _contarParcelasEmAtraso() {
+    final parcelas = _emprestimo?.parcelas ?? const <ParcelaDTO>[];
+    final hoje = DateTime.now();
+    final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
+    final total = parcelas.where((p) {
+      if ((p.status).toUpperCase() == "PAGA") return false;
+      final venc = DateTime.tryParse(p.dataVencimento);
+      if (venc == null) return false;
+      final vencSemHora = DateTime(venc.year, venc.month, venc.day);
+      return vencSemHora.isBefore(hojeSemHora);
+    }).length;
+    return total.toString();
+  }
+
+  String _obterNomeEmpresaParaMensagem() {
+    try {
+      final nome = context.read<EmpresaProvider>().getNomeEmpresa().trim();
+      if (nome.isNotEmpty) return nome;
+    } catch (_) {}
+    try {
+      final nome = context.read<AuthProvider>().loginResponse?.usuario.nome
+              .trim() ??
+          "";
+      if (nome.isNotEmpty) return nome;
+    } catch (_) {}
+    return "Empresa";
   }
 
   String _formatarDatasVencimentoParcelas(
@@ -401,6 +499,13 @@ Aguardamos seu retorno!
   }
 
   void _abrirWhatsappParcelasPagas(List<ParcelaDTO> parcelas) {
+    _garantirMensagensManuaisAtualizadas().then((_) {
+      if (!mounted) return;
+      _abrirWhatsappParcelasPagasComMensagensAtualizadas(parcelas);
+    });
+  }
+
+  void _abrirWhatsappParcelasPagasComMensagensAtualizadas(List<ParcelaDTO> parcelas) {
     if (parcelas.isEmpty) return;
     final String nomeCliente =
         _emprestimo?.cliente.nome ?? "Cliente Desconhecido";
@@ -433,8 +538,15 @@ Aguardamos seu retorno!
     final String valorPago = Util.formatarMoeda(
       valorPagoTotal > 0 ? valorPagoTotal : valorParcelaTotal,
     );
-    final String saldoParcela =
-        baixaParcial ? Util.formatarMoeda(saldoParcelaTotal) : "";
+    final String saldoParcela = Util.formatarMoeda(saldoParcelaTotal);
+    final String dataVencimento = _formatarDatasVencimentoParcelas(
+      parcelas,
+      extenso: true,
+    );
+    final String dataVencimentoCurta = _formatarDatasVencimentoParcelas(
+      parcelas,
+      extenso: false,
+    );
     final String dataPagamentoFormatada =
         _formatarDataPagamentoParcelas(parcelas);
 
@@ -469,15 +581,38 @@ Obrigado!
 """;
     final String totalContasReceber =
         Util.formatarMoeda(_emprestimo?.valor ?? 0);
+    final String totalPagoContrato =
+        Util.formatarMoeda(_calcularTotalPagoContrato());
+    final String saldoDevedor =
+        Util.formatarMoeda(_calcularSaldoDevedorContrato());
+    final String progressoParcela = _formatarProgressoParcelas(parcelas);
+    final String parcelasEmAtraso = _contarParcelasEmAtraso();
+    final String primeiroNome = Util.getPrimeiroNome(nomeCliente);
+    final String contratoId = (_emprestimo?.id ?? '').toString();
+    final String cobrador = (_emprestimo?.vendedorNome ?? '').trim().isEmpty
+        ? 'Não informado'
+        : _emprestimo!.vendedorNome!.trim();
+    final String empresaNome = _obterNomeEmpresaParaMensagem();
     final String mensagemBase = _mensagemManualOuPadrao(
         TipoMensagemManual.baixaParcela, mensagemPadraoFallback);
     final String mensagemPadrao = _aplicarTagsMensagem(mensagemBase, {
       "nome": nomeCliente,
+      "primeiro_nome": primeiroNome,
       "numero_parcela": numeroParcela,
       "valor_parcela": valorParcela,
       "valor_pago": valorPago,
+      "total_pago": totalPagoContrato,
       "saldo_parcela": saldoParcela,
+      "saldo_devedor": saldoDevedor,
+      "saldo_em_atraso": saldoParcela,
       "valor_total": totalContasReceber,
+      "vencimento": dataVencimentoCurta,
+      "vencimento_extenso": dataVencimento,
+      "contrato_id": contratoId,
+      "progresso_parcela": progressoParcela,
+      "empresa": empresaNome,
+      "cobrador": cobrador,
+      "parcelas_em_atraso": parcelasEmAtraso,
       "data_pagamento": dataPagamentoFormatada,
       "saudacao": MensagemUtils.obterSaudacao(),
     });
@@ -728,6 +863,17 @@ Obrigado!
       itemBuilder: (context, index) {
         final parc = parcelas[index];
         final isSelected = _selectedParcelas[index];
+        final double totalPrincipalBaixado = (parc.baixas ?? const [])
+            .where((b) => (b.tipoBaixa ?? '').toUpperCase() != 'JUROS')
+            .fold<double>(0.0, (soma, b) => soma + b.valor);
+        final double saldoParcelaAtual =
+            (parc.valor - totalPrincipalBaixado).clamp(0.0, parc.valor);
+        final bool possuiBaixaParcialPrincipal =
+            totalPrincipalBaixado > 0 && saldoParcelaAtual > 0;
+        final String rotuloValorParcela =
+            possuiBaixaParcialPrincipal ? "Saldo restante: " : "Valor: ";
+        final double valorExibidoParcela =
+            possuiBaixaParcialPrincipal ? saldoParcelaAtual : parc.valor;
 
         final card = Card(
           shape:
@@ -762,13 +908,15 @@ Obrigado!
                         Text.rich(
                           TextSpan(
                             children: [
-                              const TextSpan(
-                                text: "Valor: ",
-                                style: TextStyle(
-                                    fontSize: 14, color: Colors.white70),
+                              TextSpan(
+                                text: rotuloValorParcela,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white70,
+                                ),
                               ),
                               TextSpan(
-                                text: Util.formatarMoeda(parc.valor),
+                                text: Util.formatarMoeda(valorExibidoParcela),
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
@@ -778,6 +926,28 @@ Obrigado!
                             ],
                           ),
                         ),
+                        if (possuiBaixaParcialPrincipal)
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                const TextSpan(
+                                  text: "Valor original: ",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: Util.formatarMoeda(parc.valor),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                     Row(

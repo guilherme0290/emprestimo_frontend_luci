@@ -369,40 +369,25 @@ class _ConfigurarMensagemTipoScreenState
   Future<void> _salvarTemplatePadrao() async {
     if (_templates.isEmpty) return;
 
-    if (_temPersonalizada) {
-      final confirmar = await showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Substituir mensagem personalizada?'),
-          content: const Text(
-            'Ao salvar, sua mensagem personalizada atual será substituída pelo template selecionado.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Confirmar'),
-            ),
-          ],
-        ),
-      );
-      if (!mounted) return;
-      if (confirmar != true) return;
-    }
-
     final provider = Provider.of<MensagensManuaisProvider>(
       context,
       listen: false,
     );
 
-    await provider.salvarTemplatePadrao(
-      tipo: widget.tipo,
-      template: _templateSelecionado,
-      ativo: _ativo,
-    );
+    if (_temPersonalizada) {
+      await provider.salvarMensagemPersonalizada(
+        tipo: widget.tipo,
+        conteudo: (_conteudoPersonalizado ?? _templateSelecionado.conteudo).trim(),
+        ativo: _ativo,
+        templateId: _templateSelecionadoId,
+      );
+    } else {
+      await provider.salvarTemplatePadrao(
+        tipo: widget.tipo,
+        template: _templateSelecionado,
+        ativo: _ativo,
+      );
+    }
 
     if (!mounted) return;
     if (provider.errorMessage != null) {
@@ -410,11 +395,14 @@ class _ConfigurarMensagemTipoScreenState
       return;
     }
 
-    setState(() {
-      _conteudoPersonalizado = null;
-    });
-
-    _mostrarToastSucesso('Template padrão atualizado com sucesso.');
+    if (_temPersonalizada) {
+      _mostrarToastSucesso('Mensagem personalizada salva com sucesso.');
+    } else {
+      setState(() {
+        _conteudoPersonalizado = null;
+      });
+      _mostrarToastSucesso('Template padrão atualizado com sucesso.');
+    }
   }
 
   Future<void> _editarTemplate(MensagemManualTemplate template) async {
@@ -655,26 +643,41 @@ class _ConfigurarMensagemTipoScreenState
                           ),
                           const SizedBox(height: 8),
                           ..._templates.map(
-                            (template) => _TemplateOpcaoCard(
-                              controller: _controllerTemplate(template.id),
-                              accentColor: accent,
-                              template: template,
-                              selecionado:
-                                  template.id == _templateSelecionadoId,
-                              onTap: () {
-                                setState(() {
-                                  _templateSelecionadoId = template.id;
-                                  _conteudoPersonalizado = null;
-                                });
-                              },
-                              onExpansionChanged: (expandido) =>
-                                  _aoAlterarExpansaoTemplate(
-                                template.id,
-                                expandido,
-                              ),
-                              onEdit: () => _editarTemplate(template),
-                              onPreview: () => _abrirPreviewTemplate(template),
-                            ),
+                            (template) {
+                              final selecionado =
+                                  template.id == _templateSelecionadoId;
+                              final personalizadoSelecionado =
+                                  selecionado && _temPersonalizada;
+                              final conteudoExibicao =
+                                  personalizadoSelecionado
+                                      ? (_conteudoPersonalizado ??
+                                          template.conteudo)
+                                      : template.conteudo;
+                              return _TemplateOpcaoCard(
+                                key: ValueKey(
+                                  'manual_${template.id}_${conteudoExibicao.hashCode}_${personalizadoSelecionado}',
+                                ),
+                                controller: _controllerTemplate(template.id),
+                                accentColor: accent,
+                                template: template,
+                                conteudoExibicao: conteudoExibicao,
+                                personalizado: personalizadoSelecionado,
+                                selecionado: selecionado,
+                                onTap: () {
+                                  setState(() {
+                                    _templateSelecionadoId = template.id;
+                                    _conteudoPersonalizado = null;
+                                  });
+                                },
+                                onExpansionChanged: (expandido) =>
+                                    _aoAlterarExpansaoTemplate(
+                                  template.id,
+                                  expandido,
+                                ),
+                                onEdit: () => _editarTemplate(template),
+                                onPreview: () => _abrirPreviewTemplate(template),
+                              );
+                            },
                           ),
                           const SizedBox(height: 10),
                           _StatusCard(
@@ -687,7 +690,9 @@ class _ConfigurarMensagemTipoScreenState
                           ),
                           const SizedBox(height: 14),
                           CustomButton(
-                            text: 'Salvar template padrão',
+                            text: _temPersonalizada
+                                ? 'Salvar mensagem personalizada'
+                                : 'Salvar template padrão',
                             onPressed: _salvarTemplatePadrao,
                           ),
                           if (_temPersonalizada)
@@ -805,6 +810,10 @@ class _MensagemManualEditorScreenState
   @override
   Widget build(BuildContext context) {
     final accent = widget.accentColor;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final editorHeight =
+        (MediaQuery.of(context).size.height * (bottomInset > 0 ? 0.28 : 0.34))
+            .clamp(220.0, 340.0);
 
     return Scaffold(
       appBar: AppBar(
@@ -813,11 +822,17 @@ class _MensagemManualEditorScreenState
         title: Text('Editar: ${widget.titulo}'),
       ),
       body: AppBackground(
-        child: SafeArea(
-          bottom: true,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
+        child: AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: SafeArea(
+            bottom: true,
+            child: SingleChildScrollView(
+              keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.all(16),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
@@ -965,12 +980,14 @@ class _MensagemManualEditorScreenState
                   ),
                 ),
                 const SizedBox(height: 10),
-                Expanded(
+                SizedBox(
+                  height: editorHeight,
                   child: TextField(
                     controller: _controller,
                     maxLines: null,
                     expands: true,
                     textAlignVertical: TextAlignVertical.top,
+                    scrollPadding: const EdgeInsets.only(bottom: 120),
                     decoration: InputDecoration(
                       hintText: 'Digite sua mensagem personalizada...',
                       filled: true,
@@ -1016,6 +1033,7 @@ class _MensagemManualEditorScreenState
               ],
             ),
           ),
+        ),
         ),
       ),
     );
@@ -1130,6 +1148,8 @@ class _TemplateOpcaoCard extends StatelessWidget {
   final ExpansibleController controller;
   final Color accentColor;
   final MensagemManualTemplate template;
+  final String conteudoExibicao;
+  final bool personalizado;
   final bool selecionado;
   final VoidCallback onTap;
   final ValueChanged<bool> onExpansionChanged;
@@ -1137,9 +1157,12 @@ class _TemplateOpcaoCard extends StatelessWidget {
   final VoidCallback onPreview;
 
   const _TemplateOpcaoCard({
+    super.key,
     required this.controller,
     required this.accentColor,
     required this.template,
+    required this.conteudoExibicao,
+    required this.personalizado,
     required this.selecionado,
     required this.onTap,
     required this.onExpansionChanged,
@@ -1231,7 +1254,7 @@ class _TemplateOpcaoCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
-                          'Ativo',
+                              personalizado ? 'Personalizado' : 'Ativo',
                           style: TextStyle(
                             color: highlight,
                             fontSize: 11,
@@ -1257,7 +1280,7 @@ class _TemplateOpcaoCard extends StatelessWidget {
                 ),
               ),
               child: Text(
-                template.conteudo,
+                conteudoExibicao,
                 style: const TextStyle(height: 1.3),
               ),
             ),

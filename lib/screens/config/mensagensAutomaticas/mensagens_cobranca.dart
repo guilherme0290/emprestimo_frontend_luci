@@ -201,9 +201,20 @@ class _MensagensCobrancaScreenState extends State<MensagensCobrancaScreen>
     };
   }
 
-  Future<void> _previewModeloPronto(MensagemModeloPronto modelo) async {
-    final textoFinal =
-        MensagemUtils.aplicarTags(modelo.conteudo, _tagsPreviewFake());
+  Future<void> _previewModeloPronto(
+    TipoMensagemCobranca tipo,
+    MensagemModeloPronto modelo,
+  ) async {
+    final controller = _controllers[tipo];
+    final conteudoAtual = controller?.text.trim() ?? '';
+    final bool ehModeloSelecionado =
+        _identificarModeloSelecionado(tipo, conteudoAtual) == modelo.id;
+    final bool usandoVersaoPersonalizada = ehModeloSelecionado &&
+        conteudoAtual.isNotEmpty &&
+        conteudoAtual != modelo.conteudo.trim();
+
+    final base = usandoVersaoPersonalizada ? conteudoAtual : modelo.conteudo;
+    final textoFinal = MensagemUtils.aplicarTags(base, _tagsPreviewFake());
     if (!mounted) return;
     await showModalBottomSheet(
       context: context,
@@ -224,8 +235,10 @@ class _MensagensCobrancaScreenState extends State<MensagensCobrancaScreen>
                       ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'Exemplo com dados fictícios para simular o envio ao cliente.',
+                Text(
+                  usandoVersaoPersonalizada
+                      ? 'Exibindo a versão personalizada salva para este modelo.'
+                      : 'Exemplo com dados fictícios para simular o envio ao cliente.',
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -244,6 +257,28 @@ class _MensagensCobrancaScreenState extends State<MensagensCobrancaScreen>
                     ),
                   ),
                 ),
+                if (usandoVersaoPersonalizada) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: _corTipoMensagem(tipo).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: _corTipoMensagem(tipo).withValues(alpha: 0.16),
+                      ),
+                    ),
+                    child: Text(
+                      'Seu modelo personalizado',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: _corTipoMensagem(tipo),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Align(
                   alignment: Alignment.centerRight,
@@ -611,10 +646,31 @@ class _MensagensCobrancaScreenState extends State<MensagensCobrancaScreen>
                   ),
                   const SizedBox(height: 10),
                   MensagemModelosProntosSelector(
+                    key: ValueKey(
+                      'modelos_${tipo.name}_${controller.text.hashCode}_${modeloSelecionadoId ?? ''}',
+                    ),
                     accentColor: accent,
                     modelos: modelos,
                     modeloSelecionadoId: modeloSelecionadoId,
-                    onPreviewModelo: _previewModeloPronto,
+                    conteudoExibicaoBuilder: (modelo) {
+                      final atual = controller.text.trim();
+                      final ehSelecionado = modeloSelecionadoId == modelo.id;
+                      final personalizado = ehSelecionado &&
+                          atual.isNotEmpty &&
+                          atual != modelo.conteudo.trim();
+                      return personalizado ? atual : modelo.conteudo;
+                    },
+                    isPersonalizadoBuilder: (modelo) {
+                      final atual = controller.text.trim();
+                      final ehSelecionado = modeloSelecionadoId == modelo.id;
+                      return ehSelecionado &&
+                          atual.isNotEmpty &&
+                          atual != modelo.conteudo.trim();
+                    },
+                    onPreviewModelo: (modelo) => _previewModeloPronto(
+                      tipo,
+                      modelo,
+                    ),
                     onAplicarModelo: (modelo) {
                       onStateChange(() {
                         controller.text = modelo.conteudo;
@@ -1088,6 +1144,10 @@ class _MensagemAutomaticaEditorScreenState
   @override
   Widget build(BuildContext context) {
     final accent = widget.accentColor;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final editorHeight =
+        (MediaQuery.of(context).size.height * (bottomInset > 0 ? 0.28 : 0.34))
+            .clamp(220.0, 340.0);
 
     return Scaffold(
       appBar: AppBar(
@@ -1096,11 +1156,17 @@ class _MensagemAutomaticaEditorScreenState
         title: Text('Editar: ${widget.titulo}'),
       ),
       body: AppBackground(
-        child: SafeArea(
-          bottom: true,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
+        child: AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: SafeArea(
+            bottom: true,
+            child: SingleChildScrollView(
+              keyboardDismissBehavior:
+                  ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.all(16),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
@@ -1249,12 +1315,14 @@ class _MensagemAutomaticaEditorScreenState
                   ),
                 ),
                 const SizedBox(height: 10),
-                Expanded(
+                SizedBox(
+                  height: editorHeight,
                   child: TextField(
                     controller: _controller,
                     maxLines: null,
                     expands: true,
                     textAlignVertical: TextAlignVertical.top,
+                    scrollPadding: const EdgeInsets.only(bottom: 120),
                     decoration: InputDecoration(
                       hintText: 'Digite sua mensagem...',
                       filled: true,
@@ -1300,6 +1368,7 @@ class _MensagemAutomaticaEditorScreenState
               ],
             ),
           ),
+        ),
         ),
       ),
     );

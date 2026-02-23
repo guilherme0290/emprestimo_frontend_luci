@@ -35,6 +35,7 @@ class _DialogBaixaParcelasState extends State<DialogBaixaParcelas> {
   String _jurosAtrasoTipo = "PERCENTUAL";
   double _jurosAtrasoValor = 0.0;
   bool _aplicarJurosAtraso = false;
+  bool _permitirBaixaParcialConfig = false;
 
   String? _mensagemErro;
 
@@ -48,10 +49,10 @@ class _DialogBaixaParcelasState extends State<DialogBaixaParcelas> {
     super.initState();
     _recalcularTotais();
     _aplicarValorPorTipo();
-    _carregarParametrosJurosAtraso();
+    _carregarParametrosConfiguracao();
   }
 
-  Future<void> _carregarParametrosJurosAtraso() async {
+  Future<void> _carregarParametrosConfiguracao() async {
     final parametroProvider =
         Provider.of<ParametroProvider>(context, listen: false);
     if (parametroProvider.parametrosEmpresa.isEmpty) {
@@ -70,28 +71,57 @@ class _DialogBaixaParcelasState extends State<DialogBaixaParcelas> {
             .buscarParametroEmpresaChave("JUROS_ATRASO_VALOR")
             ?.valor ??
         "0";
+    final permitirBaixaParcial = parametroProvider
+            .buscarParametroEmpresaChave("PERMITIR_BAIXA_PARCIAL")
+            ?.valor ??
+        "false";
 
     if (!mounted) return;
     setState(() {
       _cobrarJurosAtrasoConfig = cobrar.toLowerCase() == 'true';
       _jurosAtrasoTipo = tipo;
       _jurosAtrasoValor = double.tryParse(valor) ?? 0.0;
+      _permitirBaixaParcialConfig =
+          permitirBaixaParcial.toLowerCase() == 'true';
+      if (!_permitirBaixaParcialConfig &&
+          _tipoBaixaMensal == StatusBaixaEnum.PARCIAL) {
+        _tipoBaixaMensal = StatusBaixaEnum.TOTAL;
+      }
       _recalcularTotais();
       _aplicarValorPorTipo();
     });
+  }
+
+  double _valorJaBaixadoPrincipalParcela(ParcelaDTO parcela) {
+    final baixas = parcela.baixas ?? const <BaixaParcelaDTO>[];
+    return baixas
+        .where((b) => (b.tipoBaixa ?? '').toUpperCase() != 'JUROS')
+        .fold<double>(0.0, (sum, b) => sum + b.valor);
+  }
+
+  double _saldoParcelaAtual(ParcelaDTO parcela) {
+    final saldo = parcela.valor - _valorJaBaixadoPrincipalParcela(parcela);
+    return saldo > 0 ? saldo : 0.0;
   }
 
   void _recalcularTotais() {
     // ✅ valor das parcelas já vem com juros embutido
     _valorTotalComJuros = widget.parcelasSelecionadas.fold(
       0.0,
-      (sum, p) => sum + p.valor,
+      (sum, p) => sum + _saldoParcelaAtual(p),
     );
 
     // ✅ juros separado só para opção "Juros"
     _valorJuros = widget.parcelasSelecionadas.fold(
       0.0,
-      (sum, p) => sum + (p.jurosParcela ?? 0.0),
+      (sum, p) {
+        final jurosBase = p.jurosParcela ?? 0.0;
+        final jurosJaBaixado = (p.baixas ?? const <BaixaParcelaDTO>[])
+            .where((b) => (b.tipoBaixa ?? '').toUpperCase() == 'JUROS')
+            .fold<double>(0.0, (s, b) => s + b.valor);
+        final jurosRestante = jurosBase - jurosJaBaixado;
+        return sum + (jurosRestante > 0 ? jurosRestante : 0.0);
+      },
     );
 
     // ✅ opcional: só pra exibir no resumo "Total parcelas" (mesmo que seja o total final)
@@ -250,14 +280,14 @@ class _DialogBaixaParcelasState extends State<DialogBaixaParcelas> {
         RadioListTile<StatusBaixaEnum>(
           value: StatusBaixaEnum.PARCIAL,
           groupValue: _tipoBaixaMensal,
-          onChanged: (v) {
+          onChanged: _permitirBaixaParcialConfig ? (v) {
             if (v == null) return;
             setState(() {
               _tipoBaixaMensal = v;
               _mensagemErro = null;
               _aplicarValorPorTipo();
             });
-          },
+          } : null,
           title: const Text("Parcial (digitar valor)"),
           dense: true,
           contentPadding: EdgeInsets.zero,
@@ -279,10 +309,10 @@ class _DialogBaixaParcelasState extends State<DialogBaixaParcelas> {
         children: [
           Text("Juros: ${Util.formatarMoeda(_valorJuros)}"),
           const SizedBox(height: 4),
-          Text("Total parcelas: ${Util.formatarMoeda(_valorParcelas)}"),
+          Text("Saldo parcelas: ${Util.formatarMoeda(_valorParcelas)}"),
           const SizedBox(height: 4),
           Text(
-            "Total (com juros): ${Util.formatarMoeda(_valorTotalComJuros)}",
+            "Saldo total: ${Util.formatarMoeda(_valorTotalComJuros)}",
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ],
@@ -313,16 +343,21 @@ class _DialogBaixaParcelasState extends State<DialogBaixaParcelas> {
   }
 
   Widget _buildValorTextField() {
-    final readOnly = _isMensal && _tipoBaixaMensal != StatusBaixaEnum.PARCIAL;
+    final podeEditarValor = _isMensal
+        ? _tipoBaixaMensal == StatusBaixaEnum.PARCIAL
+        : _permitirBaixaParcialConfig;
 
     return TextField(
       controller: _valorController,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      readOnly: readOnly,
+      readOnly: !podeEditarValor,
       decoration: InputDecoration(
         labelText: "Valor Pago",
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         prefixIcon: const Icon(Icons.attach_money),
+        helperText: !_isMensal && !_permitirBaixaParcialConfig
+            ? "Baixa parcial desativada nos parâmetros"
+            : null,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
@@ -368,6 +403,14 @@ class _DialogBaixaParcelasState extends State<DialogBaixaParcelas> {
 
     if (valorInformado <= 0) {
       setState(() => _mensagemErro = "Valor inválido!");
+      return;
+    }
+
+    if (!_permitirBaixaParcialConfig &&
+        !_isMensal &&
+        valorInformado < _valorTotalComJuros) {
+      setState(() => _mensagemErro =
+          "Baixa parcial desativada. Informe o valor total das parcelas.");
       return;
     }
 

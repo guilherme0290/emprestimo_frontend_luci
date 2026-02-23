@@ -91,12 +91,12 @@ class _MainScreenState extends State<MainScreen> {
         "label": "Relatório de Recebimentos",
         "widget": const RelatorioRecebimentosScreen()
       },
-      if (!isVendedor)
-        {
-          "icon": Icons.account_balance_wallet_outlined,
-          "label": "Fluxo de Caixa",
-          "widget": const FluxoCaixaScreen()
-        },
+      // if (!isVendedor)
+      //   {
+      //     "icon": Icons.account_balance_wallet_outlined,
+      //     "label": "Fluxo de Caixa",
+      //     "widget": const FluxoCaixaScreen()
+      //   },
       if (!isVendedor)
         {
           "icon": Icons.swap_horiz,

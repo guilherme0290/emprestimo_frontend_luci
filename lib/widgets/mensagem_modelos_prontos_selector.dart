@@ -18,6 +18,8 @@ class MensagemModelosProntosSelector extends StatelessWidget {
   final String? modeloSelecionadoId;
   final ValueChanged<MensagemModeloPronto> onAplicarModelo;
   final ValueChanged<MensagemModeloPronto>? onPreviewModelo;
+  final String Function(MensagemModeloPronto modelo)? conteudoExibicaoBuilder;
+  final bool Function(MensagemModeloPronto modelo)? isPersonalizadoBuilder;
 
   const MensagemModelosProntosSelector({
     super.key,
@@ -26,6 +28,8 @@ class MensagemModelosProntosSelector extends StatelessWidget {
     required this.modeloSelecionadoId,
     required this.onAplicarModelo,
     this.onPreviewModelo,
+    this.conteudoExibicaoBuilder,
+    this.isPersonalizadoBuilder,
   });
 
   @override
@@ -71,6 +75,10 @@ class MensagemModelosProntosSelector extends StatelessWidget {
             dividerColor: Colors.transparent,
             children: modelos.map((modelo) {
               final selecionado = modelo.id == modeloSelecionadoId;
+              final conteudoExibicao =
+                  conteudoExibicaoBuilder?.call(modelo) ?? modelo.conteudo;
+              final personalizado =
+                  isPersonalizadoBuilder?.call(modelo) ?? false;
               return ExpansionPanelRadio(
                 value: modelo.id,
                 canTapOnHeader: true,
@@ -113,7 +121,7 @@ class MensagemModelosProntosSelector extends StatelessWidget {
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
-                              'Atual',
+                              personalizado ? 'Personalizado' : 'Atual',
                               style: TextStyle(
                                 color: accentColor,
                                 fontSize: 11,
@@ -131,6 +139,9 @@ class MensagemModelosProntosSelector extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Container(
+                        key: ValueKey(
+                          'conteudo_${modelo.id}_${conteudoExibicao.hashCode}_${personalizado}',
+                        ),
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: accentColor.withValues(alpha: 0.04),
@@ -140,7 +151,7 @@ class MensagemModelosProntosSelector extends StatelessWidget {
                           ),
                         ),
                         child: Text(
-                          modelo.conteudo,
+                          conteudoExibicao,
                           style: const TextStyle(height: 1.3),
                         ),
                       ),

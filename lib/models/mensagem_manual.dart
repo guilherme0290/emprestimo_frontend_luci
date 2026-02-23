@@ -53,6 +53,8 @@ class MensagemManual {
       'tipo': tipoMensagemManualToString(tipo),
       'conteudo': conteudo,
       'ativo': ativo,
+      'templateId': templateId,
+      'personalizada': personalizada,
     };
   }
 
