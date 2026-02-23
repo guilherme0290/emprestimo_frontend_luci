@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:emprestimos_app/core/storage_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
@@ -10,7 +12,8 @@ class CompraProvider with ChangeNotifier {
 
   bool get assinaturaProcessando => _assinaturaProcessando;
 
-  late EmpresaProvider _empresaProvider;
+  EmpresaProvider? _empresaProvider;
+  StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
 
   bool _assinaturaVinculadaComSucesso = false;
   bool get assinaturaVinculadaComSucesso => _assinaturaVinculadaComSucesso;
@@ -34,7 +37,7 @@ class CompraProvider with ChangeNotifier {
 
   void _init() {
     if (!kIsWeb) {
-      _inAppPurchase?.purchaseStream.listen((purchases) {
+      _purchaseSub = _inAppPurchase?.purchaseStream.listen((purchases) {
         debugPrint(
             "🎧 Recebido do purchaseStream: ${purchases.length} compras");
         _handlePurchaseUpdates(purchases);
@@ -88,9 +91,16 @@ class CompraProvider with ChangeNotifier {
 
   Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
     for (final p in purchases) {
-      debugPrint("🔄 Produto: ${p.productID}, status: ${p.status}");
+      debugPrint(
+          "🔄 Produto: ${p.productID}, status: ${p.status}, token: ${p.verificationData.serverVerificationData}");
       if (p.status == PurchaseStatus.error) {
-        // mostrar erro amigável / liberar UI
+        debugPrint("❌ Erro na compra: ${p.error}");
+        continue;
+      }
+
+      if (p.status == PurchaseStatus.pending) {
+        debugPrint("⏳ Compra pendente: ${p.productID}");
+        continue;
       }
 
       if (p.status == PurchaseStatus.purchased ||
@@ -106,10 +116,17 @@ class CompraProvider with ChangeNotifier {
             continue;
           }
 
+          if (_empresaProvider == null) {
+            debugPrint(
+                "⚠️ EmpresaProvider ainda não configurado. Assinatura não vinculada neste momento.");
+            await _inAppPurchase?.completePurchase(p);
+            continue;
+          }
+
           _assinaturaProcessando = true;
           notifyListeners();
 
-          final sucesso = await _empresaProvider.vincularAssinaturasGooglePlay(
+          final sucesso = await _empresaProvider!.vincularAssinaturasGooglePlay(
             empresaId: empresaId,
             planoToken: token,
           );
@@ -119,10 +136,19 @@ class CompraProvider with ChangeNotifier {
 
           if (sucesso) {
             marcarAssinaturaComoConcluida();
+            debugPrint("✅ Token vinculado com sucesso à empresa ID $empresaId");
+          } else {
+            debugPrint("❌ Falha ao vincular token à empresa");
           }
           notifyListeners();
         }
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _purchaseSub?.cancel();
+    super.dispose();
   }
 }

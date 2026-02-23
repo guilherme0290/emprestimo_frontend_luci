@@ -23,7 +23,7 @@ class RelatorioRecebimentoService {
       if (caixaId != null) params['caixaId'] = caixaId;
 
       final response = await Api.dio.get(
-        '/relatorio/recebimentos',
+        '/relatorio/recebimentos/detalhes',
         queryParameters: params,
       );
 
@@ -38,11 +38,12 @@ class RelatorioRecebimentoService {
 
       final data = apiResponse.data ?? [];
       return data
-          .map((e) => RelatorioRecebimentoItem.fromJson(
-              e as Map<String, dynamic>))
+          .map((e) =>
+              RelatorioRecebimentoItem.fromJson(e as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
-      throw Exception(e.response?.data["message"] ?? "Erro ao buscar relatório");
+      throw Exception(
+          e.response?.data["message"] ?? "Erro ao buscar relatório");
     }
   }
 }

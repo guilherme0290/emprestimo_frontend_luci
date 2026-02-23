@@ -26,20 +26,40 @@ class DetalheParcelaDTO {
   });
 
   factory DetalheParcelaDTO.fromJson(Map<String, dynamic> json) {
+    DateTime parseDate(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is DateTime) return value;
+      return DateTime.tryParse(value.toString()) ?? DateTime.now();
+    }
+
+    DateTime? parseNullableDate(dynamic value) {
+      if (value == null) return null;
+      if (value is DateTime) return value;
+      return DateTime.tryParse(value.toString());
+    }
+
+    int parseInt(dynamic value) {
+      if (value is int) return value;
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    double parseDouble(dynamic value) {
+      if (value is num) return value.toDouble();
+      return double.tryParse(value?.toString() ?? '') ?? 0.0;
+    }
+
     return DetalheParcelaDTO(
-      parcelaId: json['parcelaId'] as int,
-      clienteNome: json['clienteNome'] as String,
-      contratoNumero: json['contratoNumero'] as String?,
-      vencimento: DateTime.parse(json['vencimento'] as String),
-      valorParcela: (json['valorParcela'] as num).toDouble(),
-      numeroParcela: json['numeroParcela'] as int,
-      status: json['status'] as String,
-      dataPagamento: json['dataPagamento'] != null
-          ? DateTime.parse(json['dataPagamento'] as String)
-          : null,
-      vendedorNome: json['vendedorNome'] as String?,
-      caixaDescricao: json['caixaDescricao'] as String?,
-      contasReceberId: json['contasReceberId'] as int,
+      parcelaId: parseInt(json['parcelaId']),
+      clienteNome: (json['clienteNome'] ?? '').toString(),
+      contratoNumero: json['contratoNumero']?.toString(),
+      vencimento: parseDate(json['vencimento']),
+      valorParcela: parseDouble(json['valorParcela']),
+      numeroParcela: parseInt(json['numeroParcela']),
+      status: (json['status'] ?? '').toString(),
+      dataPagamento: parseNullableDate(json['dataPagamento']),
+      vendedorNome: json['vendedorNome']?.toString(),
+      caixaDescricao: json['caixaDescricao']?.toString(),
+      contasReceberId: parseInt(json['contasReceberId']),
     );
   }
 }

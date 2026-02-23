@@ -11,6 +11,8 @@ import 'package:emprestimos_app/providers/auth_provider.dart';
 import 'package:emprestimos_app/providers/mensagens_manuais_provider.dart';
 import 'package:emprestimos_app/services/relatorio_parcelas_pdf_service.dart';
 import 'package:emprestimos_app/screens/clientes/cliente_detail_screen.dart';
+import 'package:emprestimos_app/screens/config/mensagensAutomaticas/mensagens_manuais.dart';
+import 'package:emprestimos_app/widgets/avaliacao_prompt.dart';
 import 'package:emprestimos_app/widgets/background_screens_widget.dart';
 import 'package:emprestimos_app/widgets/card_penhora_widget.dart';
 import 'package:emprestimos_app/widgets/custom_button.dart';
@@ -57,11 +59,25 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen>
     super.initState();
     _swipeHintController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2200),
+      duration: const Duration(milliseconds: 2800),
     );
-    _swipeHintOffset = Tween<double>(begin: 24, end: -24).animate(
-      CurvedAnimation(parent: _swipeHintController, curve: Curves.easeInOut),
-    );
+    _swipeHintOffset = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0, end: 24)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 30,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 24, end: -24)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 55,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -24, end: 0)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 15,
+      ),
+    ]).animate(_swipeHintController);
     _swipeHintController.addStatusListener((status) {
       if (status == AnimationStatus.completed && mounted) {
         setState(() => _showSwipeHint = false);
@@ -137,6 +153,34 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen>
     }
   }
 
+  List<int> _indicesParcelasSelecionaveis(List<ParcelaDTO> parcelas) {
+    final indices = <int>[];
+    for (int i = 0; i < parcelas.length; i++) {
+      if (parcelas[i].status != "PAGA") {
+        indices.add(i);
+      }
+    }
+    return indices;
+  }
+
+  bool _todasParcelasSelecionadas(List<ParcelaDTO> parcelas) {
+    final indices = _indicesParcelasSelecionaveis(parcelas);
+    if (indices.isEmpty) return false;
+    return indices.every((index) => _selectedParcelas[index]);
+  }
+
+  bool _algumaParcelaSelecionada(List<ParcelaDTO> parcelas) {
+    final indices = _indicesParcelasSelecionaveis(parcelas);
+    if (indices.isEmpty) return false;
+    return indices.any((index) => _selectedParcelas[index]);
+  }
+
+  void _selecionarTodasParcelas(List<ParcelaDTO> parcelas, bool selecionar) {
+    for (final index in _indicesParcelasSelecionaveis(parcelas)) {
+      _selectedParcelas[index] = selecionar;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<ContasReceberProvider>(
@@ -159,20 +203,57 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    FloatingActionButton(
+                    FloatingActionButton.extended(
                       heroTag: 'fab_baixar_parcela',
                       onPressed: _abrirDialogBaixa,
                       backgroundColor: Colors.blueAccent,
                       tooltip: 'Baixar parcela',
-                      child: const Icon(Icons.price_check, color: Colors.white),
+                      icon: const Icon(Icons.price_check, color: Colors.white),
+                      label: Text.rich(
+                        TextSpan(
+                          children: const [
+                            TextSpan(
+                              text: 'BAIXAR ',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            TextSpan(
+                              text: 'parcela',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                      ),
                     ),
                     const SizedBox(height: 12),
-                    FloatingActionButton(
+                    FloatingActionButton.extended(
                       heroTag: 'fab_whatsapp',
                       onPressed: _abrirWhatsapp,
                       backgroundColor: Colors.green,
-                      tooltip: 'Cobrar no WhatsApp',
-                      child: const Icon(FontAwesomeIcons.whatsapp),
+                      tooltip: 'Cobrar cliente no WhatsApp',
+                      icon: const Icon(FontAwesomeIcons.whatsapp,
+                          color: Colors.white),
+                      label: Text.rich(
+                        TextSpan(
+                          children: const [
+                            TextSpan(
+                              text: 'COBRAR ',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            TextSpan(
+                              text: 'cliente',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                      ),
                     ),
                   ],
                 )
@@ -269,16 +350,30 @@ Aguardamos seu retorno!
     showEditMessageDialog(
         context: context,
         mensagemController: mensagemController,
-        telefoneCliente: telefoneCliente);
+        telefoneCliente: telefoneCliente,
+        onOpenModelosMensagens: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const MensagensManuaisScreen()),
+          );
+        });
   }
 
   String _formatarDataPagamentoParcelas(List<ParcelaDTO> parcelas) {
-    final datas =
-        parcelas.map((p) => p.dataPagamento).whereType<String>().toSet();
-    if (datas.length == 1) {
-      return FormatData.formatarDataHora(datas.first);
+    final datas = parcelas
+        .expand((p) => [
+              if ((p.dataPagamento ?? '').isNotEmpty) p.dataPagamento!,
+              ...(p.baixas ?? const [])
+                  .map((b) => b.dataPagamento ?? '')
+                  .where((d) => d.isNotEmpty),
+            ])
+        .toSet()
+        .toList()
+      ..sort();
+    if (datas.isEmpty) {
+      return "";
     }
-    return "hoje";
+    return datas.map(FormatData.formatarDataHora).join(", ");
   }
 
   String _formatarNumerosParcelas(List<ParcelaDTO> parcelas) {
@@ -311,8 +406,35 @@ Aguardamos seu retorno!
         _emprestimo?.cliente.nome ?? "Cliente Desconhecido";
     final String telefoneCliente = _emprestimo?.cliente.telefone ?? "";
     final String numeroParcela = _formatarNumerosParcelas(parcelas);
-    final double valorTotal = parcelas.fold(0, (total, p) => total + p.valor);
-    final String valorParcela = Util.formatarMoeda(valorTotal);
+    final double valorPagoTotal = parcelas.fold(
+      0.0,
+      (total, p) =>
+          total + (p.baixas ?? const []).fold(0.0, (soma, b) => soma + b.valor),
+    );
+    final double valorParcelaTotal =
+        parcelas.fold(0.0, (total, p) => total + p.valor);
+    final double saldoParcelaTotal = parcelas.fold(
+      0.0,
+      (total, p) {
+        final pago =
+            (p.baixas ?? const []).fold(0.0, (soma, b) => soma + b.valor);
+        final saldo = p.valor - pago;
+        return total + (saldo > 0 ? saldo : 0.0);
+      },
+    );
+    final bool baixaParcial = parcelas.any((p) {
+      final pago =
+          (p.baixas ?? const []).fold(0.0, (soma, b) => soma + b.valor);
+      final temBaixaParcial = (p.baixas ?? const [])
+          .any((b) => (b.tipoBaixa ?? "").toUpperCase() == "PARCIAL");
+      return temBaixaParcial && pago > 0 && pago < p.valor;
+    });
+    final String valorParcela = Util.formatarMoeda(valorParcelaTotal);
+    final String valorPago = Util.formatarMoeda(
+      valorPagoTotal > 0 ? valorPagoTotal : valorParcelaTotal,
+    );
+    final String saldoParcela =
+        baixaParcial ? Util.formatarMoeda(saldoParcelaTotal) : "";
     final String dataPagamentoFormatada =
         _formatarDataPagamentoParcelas(parcelas);
 
@@ -332,14 +454,16 @@ Aguardamos seu retorno!
         ? """
 Olá $nomeCliente,
 
-Recebemos o pagamento das parcelas nº $numeroParcela no valor total de $valorParcela em $dataPagamentoFormatada.
+Recebemos o pagamento das parcelas nº $numeroParcela no valor total de $valorPago em $dataPagamentoFormatada.
+${baixaParcial ? "\nSaldo restante das parcelas: $saldoParcela." : ""}
 
 Obrigado!
 """
         : """
 Olá $nomeCliente,
 
-Recebemos o pagamento da parcela nº $numeroParcela no valor de $valorParcela em $dataPagamentoFormatada.
+Recebemos o pagamento da parcela nº $numeroParcela no valor de $valorPago em $dataPagamentoFormatada.
+${baixaParcial ? "\nSaldo restante da parcela: $saldoParcela." : ""}
 
 Obrigado!
 """;
@@ -351,6 +475,8 @@ Obrigado!
       "nome": nomeCliente,
       "numero_parcela": numeroParcela,
       "valor_parcela": valorParcela,
+      "valor_pago": valorPago,
+      "saldo_parcela": saldoParcela,
       "valor_total": totalContasReceber,
       "data_pagamento": dataPagamentoFormatada,
       "saudacao": MensagemUtils.obterSaudacao(),
@@ -361,7 +487,13 @@ Obrigado!
     showEditMessageDialog(
         context: context,
         mensagemController: mensagemController,
-        telefoneCliente: telefoneCliente);
+        telefoneCliente: telefoneCliente,
+        onOpenModelosMensagens: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const MensagensManuaisScreen()),
+          );
+        });
   }
 
   List<ParcelaDTO> _buscarParcelasAtualizadas(
@@ -579,8 +711,17 @@ Obrigado!
     final parcelas = emp.parcelas;
     final firstSwipeIndex =
         parcelas.indexWhere((parcela) => parcela.status != "PAGA");
+    final totalSelecionaveis = _indicesParcelasSelecionaveis(parcelas).length;
+    final totalSelecionadas = _selectedParcelas
+        .asMap()
+        .entries
+        .where((entry) => entry.value && parcelas[entry.key].status != "PAGA")
+        .length;
+    final todasSelecionadas = _todasParcelasSelecionadas(parcelas);
+    final algumaSelecionada = _algumaParcelaSelecionada(parcelas);
+    final possuiParcelasSelecionaveis = totalSelecionaveis > 0;
 
-    return ListView.builder(
+    final listaParcelas = ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: parcelas.length,
@@ -746,11 +887,17 @@ Obrigado!
         final dismissible = Dismissible(
           key: ValueKey('parcela_${parc.id}'),
           direction: DismissDirection.horizontal,
-          background: _buildSwipeBaixaBackground(Alignment.centerLeft),
-          secondaryBackground:
-              _buildSwipeBaixaBackground(Alignment.centerRight),
-          confirmDismiss: (_) async {
-            await _abrirDialogBaixaParaParcela(index);
+          background: _buildSwipeCobrancaBackground(),
+          secondaryBackground: _buildSwipeBaixaBackground(),
+          confirmDismiss: (direction) async {
+            if (direction == DismissDirection.startToEnd) {
+              _abrirWhatsappParaParcela(index);
+              return false;
+            }
+            if (direction == DismissDirection.endToStart) {
+              await _abrirDialogBaixaParaParcela(index);
+              return false;
+            }
             return false;
           },
           child: card,
@@ -781,38 +928,123 @@ Obrigado!
         return dismissible;
       },
     );
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Card(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            elevation: 1,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: possuiParcelasSelecionaveis
+                  ? () {
+                      setState(() {
+                        _selecionarTodasParcelas(parcelas, !todasSelecionadas);
+                      });
+                    }
+                  : null,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.done_all),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Marcar todas as parcelas pendentes'),
+                          Text(
+                            possuiParcelasSelecionaveis
+                                ? '$totalSelecionadas de $totalSelecionaveis parcelas pendentes selecionadas'
+                                : 'Não há parcelas pendentes para selecionar',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Transform.scale(
+                      scale: 1.4,
+                      child: Checkbox(
+                        tristate: true,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        side: BorderSide(
+                          color: AppTheme.primaryColor,
+                          width: 2,
+                        ),
+                        checkColor: Colors.white,
+                        activeColor: AppTheme.primaryColor,
+                        value: todasSelecionadas
+                            ? true
+                            : (algumaSelecionada ? null : false),
+                        onChanged: possuiParcelasSelecionaveis
+                            ? (_) {
+                                setState(() {
+                                  _selecionarTodasParcelas(
+                                      parcelas, !todasSelecionadas);
+                                });
+                              }
+                            : null,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        listaParcelas,
+      ],
+    );
   }
 
-  Widget _buildSwipeBaixaBackground(Alignment alignment) {
-    final isLeft = alignment == Alignment.centerLeft;
+  Widget _buildSwipeBaixaBackground() {
     return Container(
-      alignment: alignment,
+      alignment: Alignment.centerRight,
       margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
       decoration: BoxDecoration(
-        color: Colors.green.withOpacity(0.2),
+        color: Colors.blue.withOpacity(0.22),
         borderRadius: BorderRadius.circular(12),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isLeft) ...[
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 8),
-            const Text(
-              "Baixar parcela",
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-            ),
-          ] else ...[
-            const Text(
-              "Baixar parcela",
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.check_circle, color: Colors.white),
-          ],
+          Text(
+            "Baixar parcela",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          ),
+          SizedBox(width: 8),
+          Icon(Icons.check_circle, color: Colors.white),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwipeCobrancaBackground() {
+    return Container(
+      alignment: Alignment.centerLeft,
+      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.green.withOpacity(0.22),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(FontAwesomeIcons.whatsapp, color: Colors.white, size: 18),
+          SizedBox(width: 8),
+          Text(
+            "Cobrar cliente",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
@@ -834,7 +1066,7 @@ Obrigado!
             Icon(Icons.swipe, color: Colors.white, size: 16),
             SizedBox(width: 6),
             Text(
-              "Deslize",
+              "→ Cobrar cliente   |   ← Baixar parcela",
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12,
@@ -901,15 +1133,6 @@ Obrigado!
                   onPressed: _dialogConfirmacaoQuitarContasReceberPenhora,
                 ),
               const SizedBox(height: 8),
-              if (_emprestimo?.statusContasReceber != 'QUITADO')
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: CustomButton(
-                    text: 'Baixar parcela',
-                    onPressed: _abrirDialogBaixa,
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
             ],
           ),
         ),
@@ -953,6 +1176,16 @@ Obrigado!
       }
     });
     _abrirDialogBaixa();
+  }
+
+  void _abrirWhatsappParaParcela(int index) {
+    if (_emprestimo == null) return;
+    setState(() {
+      for (int i = 0; i < _selectedParcelas.length; i++) {
+        _selectedParcelas[i] = i == index;
+      }
+    });
+    _abrirWhatsapp();
   }
 
   void tratarRetornoBaixa(BaixaParcelaResult? resultado,

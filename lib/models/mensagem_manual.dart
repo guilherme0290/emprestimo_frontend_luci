@@ -27,11 +27,15 @@ class MensagemManual {
   final TipoMensagemManual tipo;
   String conteudo;
   bool ativo;
+  String? templateId;
+  bool? personalizada;
 
   MensagemManual({
     required this.tipo,
     required this.conteudo,
     this.ativo = true,
+    this.templateId,
+    this.personalizada,
   });
 
   factory MensagemManual.fromJson(Map<String, dynamic> json) {
@@ -39,6 +43,8 @@ class MensagemManual {
       tipo: tipoMensagemManualFromString(json['tipo']),
       conteudo: json['conteudo'],
       ativo: json['ativo'] ?? true,
+      templateId: json['templateId']?.toString(),
+      personalizada: json['personalizada'] as bool?,
     );
   }
 
@@ -48,5 +54,21 @@ class MensagemManual {
       'conteudo': conteudo,
       'ativo': ativo,
     };
+  }
+
+  MensagemManual copyWith({
+    TipoMensagemManual? tipo,
+    String? conteudo,
+    bool? ativo,
+    String? templateId,
+    bool? personalizada,
+  }) {
+    return MensagemManual(
+      tipo: tipo ?? this.tipo,
+      conteudo: conteudo ?? this.conteudo,
+      ativo: ativo ?? this.ativo,
+      templateId: templateId ?? this.templateId,
+      personalizada: personalizada ?? this.personalizada,
+    );
   }
 }

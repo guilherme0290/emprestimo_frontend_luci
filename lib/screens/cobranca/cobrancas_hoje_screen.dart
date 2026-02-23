@@ -4,12 +4,12 @@ import 'package:emprestimos_app/models/detalhamento_parcela.dart';
 import 'package:emprestimos_app/providers/auth_provider.dart';
 import 'package:emprestimos_app/providers/caixa_provider.dart';
 import 'package:emprestimos_app/providers/vendedor_provider.dart';
+import 'package:emprestimos_app/screens/emprestimos/emprestimo_detail_screen.dart';
 import 'package:emprestimos_app/services/cobranca_hoje_service.dart';
 import 'package:emprestimos_app/widgets/background_screens_widget.dart';
 import 'package:emprestimos_app/widgets/custom_button.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 class CobrancasHojeScreen extends StatefulWidget {
@@ -23,6 +23,7 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
   DateTime vencimento = DateTime.now();
   int? caixaIdSelecionado;
   int? vendedorIdSelecionado;
+  late final TextEditingController _vencimentoController;
 
   bool isLoading = false;
   String? errorMessage;
@@ -36,20 +37,35 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
   @override
   void initState() {
     super.initState();
+    _vencimentoController = TextEditingController();
+    _atualizarTextoVencimento();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final caixaProvider = Provider.of<CaixaProvider>(context, listen: false);
-      final vendedorProvider =
-          Provider.of<VendedorProvider>(context, listen: false);
-      await caixaProvider.listarCaixas();
-      await vendedorProvider.listarVendedores();
-
-      if (_isVendedor) {
+      try {
         final auth = Provider.of<AuthProvider>(context, listen: false);
-        vendedorIdSelecionado = auth.loginResponse?.usuario.id;
-      }
+        final isVendedor = auth.loginResponse?.role == 'VENDEDOR';
+        final caixaProvider =
+            Provider.of<CaixaProvider>(context, listen: false);
+        final vendedorProvider =
+            Provider.of<VendedorProvider>(context, listen: false);
+        await caixaProvider.listarCaixas();
+        await vendedorProvider.listarVendedores();
 
-      if (mounted) setState(() {});
+        if (isVendedor) {
+          vendedorIdSelecionado = auth.loginResponse?.usuario.id;
+        }
+
+        if (mounted) setState(() {});
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => errorMessage = "Erro ao carregar filtros: $e");
+      }
     });
+  }
+
+  @override
+  void dispose() {
+    _vencimentoController.dispose();
+    super.dispose();
   }
 
   Future<void> _buscar() async {
@@ -75,11 +91,16 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
   void _limpar() {
     setState(() {
       vencimento = DateTime.now();
+      _atualizarTextoVencimento();
       caixaIdSelecionado = null;
       if (!_isVendedor) vendedorIdSelecionado = null;
       resultados = [];
       errorMessage = null;
     });
+  }
+
+  void _atualizarTextoVencimento() {
+    _vencimentoController.text = DateFormat('dd/MM/yyyy').format(vencimento);
   }
 
   @override
@@ -89,8 +110,9 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
     final vendedorValue = vendedores.any((v) => v.id == vendedorIdSelecionado)
         ? vendedorIdSelecionado
         : null;
-    final caixaValue =
-        caixas.any((c) => c.id == caixaIdSelecionado) ? caixaIdSelecionado : null;
+    final caixaValue = caixas.any((c) => c.id == caixaIdSelecionado)
+        ? caixaIdSelecionado
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -107,7 +129,7 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
               const SizedBox(height: 12),
               if (caixas.isNotEmpty)
                 DropdownButtonFormField<int>(
-                  value: caixaValue,
+                  initialValue: caixaValue,
                   items: caixas
                       .map((caixa) => DropdownMenuItem<int>(
                             value: caixa.id,
@@ -123,7 +145,7 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
               const SizedBox(height: 12),
               if (vendedores.isNotEmpty)
                 DropdownButtonFormField<int>(
-                  value: vendedorValue,
+                  initialValue: vendedorValue,
                   items: vendedores
                       .map((v) => DropdownMenuItem<int>(
                             value: v.id,
@@ -173,7 +195,6 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
   }
 
   Widget _buildDateField() {
-    final texto = DateFormat('dd/MM/yyyy').format(vencimento);
     return TextFormField(
       readOnly: true,
       decoration: const InputDecoration(
@@ -181,7 +202,7 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
         border: OutlineInputBorder(),
         suffixIcon: Icon(Icons.date_range),
       ),
-      controller: TextEditingController(text: texto),
+      controller: _vencimentoController,
       onTap: () async {
         final picked = await showDatePicker(
           locale: const Locale('pt', 'BR'),
@@ -191,7 +212,10 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
           lastDate: DateTime(2100),
         );
         if (picked != null) {
-          setState(() => vencimento = picked);
+          setState(() {
+            vencimento = picked;
+            _atualizarTextoVencimento();
+          });
         }
       },
     );
@@ -212,11 +236,14 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
     }
 
     if (resultados.isEmpty) {
-      return Center(
-        child: Lottie.asset(
-          'assets/img/no-results.json',
-          height: 180,
-          repeat: true,
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
+            SizedBox(height: 12),
+            Text('Nenhum resultado encontrado.'),
+          ],
         ),
       );
     }
@@ -230,43 +257,74 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
         final item = resultados[index];
         return Card(
           elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.clienteNome,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ContasReceberDetailScreen(
+                      contasreceberId: item.contasReceberId),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.clienteNome,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text('Contrato: ${item.contratoNumero ?? '--'}'),
-                Text(
-                  'Vencimento: ${FormatData.formatarDataCompletaPadrao(item.vencimento)}',
-                ),
-                Text('Parcela: ${item.numeroParcela}'),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Status: ${item.status}',
-                      style: const TextStyle(color: Colors.black54),
-                    ),
-                    Text(
-                      Util.formatarMoeda(item.valorParcela),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
+                  const SizedBox(height: 6),
+                  Text('Contrato: ${item.contratoNumero ?? '--'}'),
+                  Text(
+                    'Vencimento: ${FormatData.formatarDataCompletaPadrao(item.vencimento)}',
+                  ),
+                  Text('Parcela: ${item.numeroParcela}'),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Status: ${item.status}',
+                        style: const TextStyle(color: Colors.black54),
                       ),
+                      Text(
+                        Util.formatarMoeda(item.valorParcela),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ContasReceberDetailScreen(
+                              contasreceberId: item.contasReceberId,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.open_in_new, size: 18),
+                      label: const Text('Abrir contrato'),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         );

@@ -1,6 +1,7 @@
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:emprestimos_app/widgets/dialog_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:emprestimos_app/core/theme/theme.dart';
 import 'package:emprestimos_app/models/planos.dart';
@@ -14,7 +15,7 @@ Future<void> showBottomSheetAtivacao({
       (buscarPlanoSelecionado != null ? await buscarPlanoSelecionado() : null);
 
   if (planoSelecionado == null ||
-      planoSelecionado.productIdGooglePlay == null) {
+      (planoSelecionado.productIdGooglePlay?.trim().isEmpty ?? true)) {
     // Pode mostrar um alerta de erro aqui se quiser
     return;
   }
@@ -42,54 +43,53 @@ Future<void> showBottomSheetAtivacao({
             ElevatedButton.icon(
               onPressed: () async {
                 try {
-                  // evita toque duplo
-                  if (context.mounted) FocusScope.of(context).unfocus();
-
-                  // 1) Verifica se a Play Store está disponível
-                  final isAvailable =
-                      await InAppPurchase.instance.isAvailable();
-                  if (!isAvailable) {
+                  if (kIsWeb) return;
+                  final billing = InAppPurchase.instance;
+                  final disponivel = await billing.isAvailable();
+                  if (!disponivel) {
+                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                          content: Text(
-                              "Play Store não disponivel no momento, tente novamente mais tarde.")),
+                        content: Text('Google Play indisponível no momento.'),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                     return;
                   }
 
-                  // 2) Busca detalhes do produto
-                  final productId = planoSelecionado!.productIdGooglePlay!;
-                  final response = await InAppPurchase.instance
-                      .queryProductDetails({productId});
+                  final productId = planoSelecionado!.productIdGooglePlay!.trim();
+                  final response =
+                      await billing.queryProductDetails({productId});
 
                   if (response.error != null ||
-                      response.productDetails.isEmpty) {
-                    // trate: produto não encontrado / erro de billing
+                      response.productDetails.isEmpty ||
+                      response.notFoundIDs.isNotEmpty) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Produto da assinatura não encontrado na Play Store (${response.notFoundIDs.join(', ')}).',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
                     return;
                   }
 
                   final produto = response.productDetails.first;
-
-                  // 3) Dispara compra com PurchaseParam simples (sem payloads grandes)
                   final param = PurchaseParam(productDetails: produto);
-                  final ok = await InAppPurchase.instance
-                      .buyNonConsumable(purchaseParam: param);
+                  await billing.buyNonConsumable(purchaseParam: param);
 
-                  // Só fecha o bottom sheet se a chamada foi aceita pelo BillingClient
-                  if (ok && context.mounted) Navigator.pop(context);
+                  if (!context.mounted) return;
+                  Navigator.pop(context);
                 } catch (e) {
-                  debugPrint("❌ Erro inesperado no fluxo de compra: $e");
-                  debugPrint(e.toString());
-
-                  MyAwesomeDialog(
-                    dialogType: DialogType.error,
-                    context: context,
-                    btnCancelText: 'Ok',
-                    title: "Ops, algo deu errado!",
-                    message:
-                        "Ocorreu um erro inesperado durante a tentativa de compra. "
-                        "Tente novamente em alguns instantes.",
-                  ).show();
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Erro ao iniciar assinatura: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
               },
               // onPressed: () async {

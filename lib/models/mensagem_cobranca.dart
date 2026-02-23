@@ -11,6 +11,8 @@ TipoMensagemCobranca tipoFromString(String tipo) {
       return TipoMensagemCobranca.antesVencimento;
     case 'DIA_VENCIMENTO':
       return TipoMensagemCobranca.diaVencimento;
+    case 'EM_ATRASO':
+      return TipoMensagemCobranca.emAtraso;
     case 'DIVIDA_QUITADA':
       return TipoMensagemCobranca.dividaoQuitada;
     case 'EM_ATRASO':
@@ -26,6 +28,8 @@ String tipoToString(TipoMensagemCobranca tipo) {
       return 'ANTES_VENCIMENTO';
     case TipoMensagemCobranca.diaVencimento:
       return 'DIA_VENCIMENTO';
+    case TipoMensagemCobranca.emAtraso:
+      return 'EM_ATRASO';
     case TipoMensagemCobranca.dividaoQuitada:
       return 'DIVIDA_QUITADA';
     case TipoMensagemCobranca.emAtraso:

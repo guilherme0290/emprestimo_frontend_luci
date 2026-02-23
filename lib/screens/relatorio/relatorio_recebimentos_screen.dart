@@ -4,12 +4,13 @@ import 'package:emprestimos_app/models/relatorio_recebimento_item.dart';
 import 'package:emprestimos_app/providers/auth_provider.dart';
 import 'package:emprestimos_app/providers/caixa_provider.dart';
 import 'package:emprestimos_app/providers/vendedor_provider.dart';
+import 'package:emprestimos_app/screens/emprestimos/emprestimo_detail_screen.dart';
 import 'package:emprestimos_app/services/relatorio_recebimento_service.dart';
 import 'package:emprestimos_app/widgets/background_screens_widget.dart';
 import 'package:emprestimos_app/widgets/custom_button.dart';
 import 'package:emprestimos_app/widgets/range_datas.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 class RelatorioRecebimentosScreen extends StatefulWidget {
@@ -26,8 +27,10 @@ class _RelatorioRecebimentosScreenState
   DateTime? pagamentoFim;
   int? caixaIdSelecionado;
   int? vendedorIdSelecionado;
+  late final TextEditingController _periodoController;
 
   bool isLoading = false;
+  bool _mostrarDetalhes = false;
   String? errorMessage;
   List<RelatorioRecebimentoItem> resultados = [];
 
@@ -39,20 +42,35 @@ class _RelatorioRecebimentosScreenState
   @override
   void initState() {
     super.initState();
+    _periodoController = TextEditingController();
+    _atualizarTextoPeriodo();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final caixaProvider = Provider.of<CaixaProvider>(context, listen: false);
-      final vendedorProvider =
-          Provider.of<VendedorProvider>(context, listen: false);
-      await caixaProvider.listarCaixas();
-      await vendedorProvider.listarVendedores();
-
-      if (_isVendedor) {
+      try {
         final auth = Provider.of<AuthProvider>(context, listen: false);
-        vendedorIdSelecionado = auth.loginResponse?.usuario.id;
-      }
+        final isVendedor = auth.loginResponse?.role == 'VENDEDOR';
+        final caixaProvider =
+            Provider.of<CaixaProvider>(context, listen: false);
+        final vendedorProvider =
+            Provider.of<VendedorProvider>(context, listen: false);
+        await caixaProvider.listarCaixas();
+        await vendedorProvider.listarVendedores();
 
-      if (mounted) setState(() {});
+        if (isVendedor) {
+          vendedorIdSelecionado = auth.loginResponse?.usuario.id;
+        }
+
+        if (mounted) setState(() {});
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => errorMessage = "Erro ao carregar filtros: $e");
+      }
     });
+  }
+
+  @override
+  void dispose() {
+    _periodoController.dispose();
+    super.dispose();
   }
 
   Future<void> _buscar() async {
@@ -78,7 +96,10 @@ class _RelatorioRecebimentosScreenState
         vendedorId: vendedorIdSelecionado,
         caixaId: caixaIdSelecionado,
       );
-      setState(() => resultados = data);
+      setState(() {
+        resultados = data;
+        _mostrarDetalhes = false;
+      });
     } catch (e) {
       setState(() => errorMessage = e.toString());
     } finally {
@@ -90,17 +111,31 @@ class _RelatorioRecebimentosScreenState
     setState(() {
       pagamentoInicio = null;
       pagamentoFim = null;
+      _atualizarTextoPeriodo();
       caixaIdSelecionado = null;
       if (!_isVendedor) vendedorIdSelecionado = null;
       resultados = [];
+      _mostrarDetalhes = false;
       errorMessage = null;
     });
+  }
+
+  void _atualizarTextoPeriodo() {
+    _periodoController.text = (pagamentoInicio != null && pagamentoFim != null)
+        ? '${FormatData.formatarDataCompletaPadrao(pagamentoInicio)} - ${FormatData.formatarDataCompletaPadrao(pagamentoFim)}'
+        : '';
   }
 
   @override
   Widget build(BuildContext context) {
     final vendedores = Provider.of<VendedorProvider>(context).vendedores;
     final caixas = Provider.of<CaixaProvider>(context).caixas;
+    final vendedorValue = vendedores.any((v) => v.id == vendedorIdSelecionado)
+        ? vendedorIdSelecionado
+        : null;
+    final caixaValue = caixas.any((c) => c.id == caixaIdSelecionado)
+        ? caixaIdSelecionado
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -117,7 +152,7 @@ class _RelatorioRecebimentosScreenState
               const SizedBox(height: 12),
               if (caixas.isNotEmpty)
                 DropdownButtonFormField<int>(
-                  value: caixaIdSelecionado,
+                  initialValue: caixaValue,
                   items: caixas
                       .map((caixa) => DropdownMenuItem<int>(
                             value: caixa.id,
@@ -133,7 +168,7 @@ class _RelatorioRecebimentosScreenState
               const SizedBox(height: 12),
               if (vendedores.isNotEmpty)
                 DropdownButtonFormField<int>(
-                  value: vendedorIdSelecionado,
+                  initialValue: vendedorValue,
                   items: vendedores
                       .map((v) => DropdownMenuItem<int>(
                             value: v.id,
@@ -183,10 +218,6 @@ class _RelatorioRecebimentosScreenState
   }
 
   Widget _buildDateSelector() {
-    final texto = (pagamentoInicio != null && pagamentoFim != null)
-        ? '${FormatData.formatarDataCompletaPadrao(pagamentoInicio)} - ${FormatData.formatarDataCompletaPadrao(pagamentoFim)}'
-        : '';
-
     return TextFormField(
       readOnly: true,
       decoration: const InputDecoration(
@@ -195,7 +226,7 @@ class _RelatorioRecebimentosScreenState
         border: OutlineInputBorder(),
         suffixIcon: Icon(Icons.date_range),
       ),
-      controller: TextEditingController(text: texto),
+      controller: _periodoController,
       onTap: () async {
         final resultado = await DateRangeSelector.show(
           context,
@@ -205,6 +236,7 @@ class _RelatorioRecebimentosScreenState
           setState(() {
             pagamentoInicio = resultado['dataInicio'];
             pagamentoFim = resultado['dataFim'];
+            _atualizarTextoPeriodo();
           });
         }
       },
@@ -226,50 +258,216 @@ class _RelatorioRecebimentosScreenState
     }
 
     if (resultados.isEmpty) {
-      return Center(
-        child: Lottie.asset(
-          'assets/img/no-results.json',
-          height: 180,
-          repeat: true,
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey),
+            SizedBox(height: 12),
+            Text('Nenhum resultado encontrado.'),
+          ],
         ),
       );
     }
 
-    final total = resultados.fold<double>(
-        0.0, (sum, item) => sum + item.valorPago);
+    final total =
+        resultados.fold<double>(0.0, (sum, item) => sum + item.valorPago);
+    final quantidade = resultados.length;
+    final ticketMedio = quantidade > 0 ? total / quantidade : 0.0;
+    final agrupadoPorRecebedor = <String, double>{};
+    for (final item in resultados) {
+      final chave =
+          item.recebidoPor.trim().isEmpty ? 'Empresa' : item.recebidoPor.trim();
+      agrupadoPorRecebedor[chave] =
+          (agrupadoPorRecebedor[chave] ?? 0.0) + item.valorPago;
+    }
+    final entradasAgrupadas = agrupadoPorRecebedor.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildResumoRecebimentos(
+          total,
+          quantidade,
+          ticketMedio,
+          entradasAgrupadas,
+        ),
+        if (_mostrarDetalhes) ...[
+          const SizedBox(height: 12),
+          _buildTabelaDetalhes(total),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildResumoRecebimentos(double total, int quantidade,
+      double ticketMedio, List<MapEntry<String, double>> entradasAgrupadas) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _buildResumoTile(
+                      'Total recebido', Util.formatarMoeda(total)),
+                ),
+                Expanded(
+                  child: _buildResumoTile(
+                      'Qtd. recebimentos', quantidade.toString()),
+                ),
+                Expanded(
+                  child: _buildResumoTile(
+                      'Ticket médio', Util.formatarMoeda(ticketMedio)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Recebido por',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowColor: WidgetStateProperty.all(
+                  Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                ),
+                columns: const [
+                  DataColumn(label: Text('Recebedor')),
+                  DataColumn(label: Text('Valor Pago (Soma)')),
+                ],
+                rows: [
+                  ...entradasAgrupadas.map(
+                    (e) => DataRow(
+                      cells: [
+                        DataCell(Text(e.key)),
+                        DataCell(Text(Util.formatarMoeda(e.value))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: () =>
+                    setState(() => _mostrarDetalhes = !_mostrarDetalhes),
+                icon: Icon(_mostrarDetalhes
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined),
+                label: Text(
+                  _mostrarDetalhes ? 'Ocultar Detalhes' : 'Detalhar',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResumoTile(String titulo, String valor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          titulo,
+          style: const TextStyle(fontSize: 12, color: Colors.black54),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          valor,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabelaDetalhes(double total) {
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
-          headingRowColor: MaterialStateProperty.all(
-            Theme.of(context).primaryColor.withOpacity(0.1),
+          headingRowColor: WidgetStateProperty.all(
+            Theme.of(context).primaryColor.withValues(alpha: 0.1),
           ),
-          columnSpacing: 32,
+          columnSpacing: 20,
           columns: const [
-            DataColumn(label: Text('Vendedor')),
-            DataColumn(label: Text('Valor Pago (Soma)')),
+            DataColumn(label: Text('Data/Hora')),
+            DataColumn(label: Text('Cliente')),
+            DataColumn(label: Text('Contrato')),
+            DataColumn(label: Text('Parcela')),
+            DataColumn(label: Text('Valor Recebido')),
+            DataColumn(label: Text('Criado por')),
+            DataColumn(label: Text('Recebido por')),
+            DataColumn(label: Text('Caixa')),
+            DataColumn(label: Text('Detalhar')),
           ],
           rows: [
             ...resultados.map((e) => DataRow(cells: [
-                  DataCell(Text(e.cobradorNome)),
+                  DataCell(Text(
+                    e.dataPagamento != null
+                        ? DateFormat('dd/MM HH:mm').format(e.dataPagamento!)
+                        : '--/-- --:--',
+                  )),
+                  DataCell(Text(e.clienteNome)),
+                  DataCell(Text('#${e.contasReceberId}')),
+                  DataCell(Text(e.numeroParcela.toString())),
                   DataCell(Text(Util.formatarMoeda(e.valorPago))),
+                  DataCell(Text(e.criadoPor.isEmpty ? '-' : e.criadoPor)),
+                  DataCell(Text(e.recebidoPor.isEmpty ? '-' : e.recebidoPor)),
+                  DataCell(
+                      Text(e.caixaDescricao.isEmpty ? '-' : e.caixaDescricao)),
+                  DataCell(
+                    IconButton(
+                      tooltip: 'Abrir contrato',
+                      icon: const Icon(Icons.open_in_new, size: 20),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ContasReceberDetailScreen(
+                              contasreceberId: e.contasReceberId,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ])),
             DataRow(
-              color: MaterialStateProperty.all(Colors.grey[200]),
+              color: WidgetStateProperty.all(Colors.grey[200]),
               cells: [
                 const DataCell(
-                  Text('Total Geral',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    'Total Geral',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
+                const DataCell(Text('')),
+                const DataCell(Text('')),
+                const DataCell(Text('')),
                 DataCell(
                   Text(
                     Util.formatarMoeda(total),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
+                const DataCell(Text('')),
+                const DataCell(Text('')),
+                const DataCell(Text('')),
+                const DataCell(Text('')),
               ],
             ),
           ],

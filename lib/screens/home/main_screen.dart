@@ -2,6 +2,7 @@ import 'package:emprestimos_app/models/planos.dart';
 import 'package:emprestimos_app/providers/empresa_provider.dart';
 import 'package:emprestimos_app/screens/cobranca/resumo_cobranca.dart';
 import 'package:emprestimos_app/screens/cobranca/cobrancas_hoje_screen.dart';
+import 'package:emprestimos_app/screens/caixa/fluxo_caixa_screen.dart';
 import 'package:emprestimos_app/screens/localizar_parcela/localizar_parcela.dart';
 import 'package:emprestimos_app/screens/relatorio/relatorio_recebimentos_screen.dart';
 import 'package:emprestimos_app/screens/vendedores/vendedor_list_screen.dart';
@@ -90,6 +91,12 @@ class _MainScreenState extends State<MainScreen> {
         "label": "Relatório de Recebimentos",
         "widget": const RelatorioRecebimentosScreen()
       },
+      if (!isVendedor)
+        {
+          "icon": Icons.account_balance_wallet_outlined,
+          "label": "Fluxo de Caixa",
+          "widget": const FluxoCaixaScreen()
+        },
       if (!isVendedor)
         {
           "icon": Icons.swap_horiz,

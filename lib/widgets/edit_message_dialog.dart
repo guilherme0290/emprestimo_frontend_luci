@@ -7,6 +7,7 @@ void showEditMessageDialog({
   required BuildContext context,
   required TextEditingController mensagemController,
   required String telefoneCliente,
+  VoidCallback? onOpenModelosMensagens,
 }) {
   showDialog(
     context: context,
@@ -42,6 +43,72 @@ void showEditMessageDialog({
               ),
 
               const SizedBox(height: 12),
+
+              if (onOpenModelosMensagens != null) ...[
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.pop(context);
+                      onOpenModelosMensagens();
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Ink(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: Colors.black.withValues(alpha: 0.06),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 3,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor,
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Modelos de mensagens',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Text(
+                                  'Escolha outro modelo pronto.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black.withValues(alpha: 0.62),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.arrow_forward,
+                            size: 18,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
 
               /// 🔹 **Campo de Edição de Texto**
               TextField(

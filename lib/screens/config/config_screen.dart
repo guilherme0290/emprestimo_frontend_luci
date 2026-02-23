@@ -117,7 +117,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                   if (_isEmpresa)
                     _buildCardTile(
                       icon: Icons.mark_email_read,
-                      title: "Mensagens Manuais",
+                      title: "Modelos de mensagens",
                       color: AppTheme.primaryColor,
                       onTap: () {
                         Navigator.push(

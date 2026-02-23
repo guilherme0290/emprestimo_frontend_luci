@@ -165,6 +165,7 @@ class _VinculoWhatsappScreenState extends State<VinculoWhatsappScreen> {
   Widget build(BuildContext context) {
     final provider = Provider.of<WhatsappProvider>(context);
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final statusColor = provider.status ? Colors.green : Colors.red;
     final statusText =
         provider.status ? "WhatsApp conectado" : "WhatsApp desconectado";
@@ -178,46 +179,84 @@ class _VinculoWhatsappScreenState extends State<VinculoWhatsappScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  shape: BoxShape.circle,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  statusColor.withValues(alpha: 0.10),
+                  scheme.primary.withValues(alpha: 0.06),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: statusColor.withValues(alpha: 0.18)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.10),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    FontAwesomeIcons.whatsapp,
+                    color: statusColor,
+                    size: 22,
+                  ),
                 ),
-                child: Icon(FontAwesomeIcons.whatsapp,
-                    color: statusColor, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Vincular WhatsApp',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Vincular WhatsApp',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      statusText,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: statusColor,
-                        fontWeight: FontWeight.w600,
+                      const SizedBox(height: 2),
+                      Text(
+                        statusText,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _WhatsappPill(
+                            icon: Icons.qr_code_2_outlined,
+                            label: 'QR + código',
+                            color: scheme.primary,
+                          ),
+                          _WhatsappPill(
+                            icon: provider.status
+                                ? Icons.verified_outlined
+                                : Icons.link_outlined,
+                            label: provider.status ? 'Conectado' : 'Pendente',
+                            color: statusColor,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              TextButton(
-                onPressed: isBusy ? null : _carregarStatus,
-                child: const Text('Verificar'),
-              ),
-            ],
+                TextButton(
+                  onPressed: isBusy ? null : _carregarStatus,
+                  child: const Text('Verificar'),
+                ),
+              ],
+            ),
           ),
           if (provider.status) ...[
             const SizedBox(height: 8),
@@ -236,9 +275,9 @@ class _VinculoWhatsappScreenState extends State<VinculoWhatsappScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.red.withOpacity(0.3)),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -256,46 +295,83 @@ class _VinculoWhatsappScreenState extends State<VinculoWhatsappScreen> {
           ],
 
           const SizedBox(height: 20),
-          Text(
-            'Número do WhatsApp',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.88),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: scheme.primary.withValues(alpha: 0.10)),
             ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _numeroController,
-            keyboardType: TextInputType.phone,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: InputDecoration(
-              hintText: "Ex: 5599999999999",
-              prefixIcon: const Icon(Icons.phone),
-              border: const OutlineInputBorder(),
-              helperText: 'Inclua o código do país e DDD. Somente números.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.phone_android, color: scheme.primary, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Número do WhatsApp',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _numeroController,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
+                    hintText: "Ex: 5599999999999",
+                    prefixIcon: const Icon(Icons.phone),
+                    filled: true,
+                    fillColor: scheme.primary.withValues(alpha: 0.03),
+                    border: const OutlineInputBorder(),
+                    helperText:
+                        'Inclua o código do país e DDD. Somente números.',
+                  ),
+                  onChanged: (_) => setState(() {
+                    _codigoConexao = null;
+                    _qrBase64 = null;
+                    _codigoExpiraEm = null;
+                    _codigoExpirado = false;
+                  }),
+                ),
+                const SizedBox(height: 10),
+                if (isBusy)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: const LinearProgressIndicator(minHeight: 4),
+                  ),
+                const SizedBox(height: 8),
+                CustomButton(
+                  text: provider.status
+                      ? 'WhatsApp ja conectado'
+                      : (isBusy
+                          ? 'Gerando código...'
+                          : 'Gerar código de conexão'),
+                  onPressed: canGenerate ? _gerarCodigo : null,
+                  enabled: canGenerate,
+                ),
+              ],
             ),
-            onChanged: (_) => setState(() {
-              _codigoConexao = null;
-              _qrBase64 = null;
-              _codigoExpiraEm = null;
-              _codigoExpirado = false;
-            }),
-          ),
-          const SizedBox(height: 10),
-          if (isBusy) const LinearProgressIndicator(minHeight: 2),
-          const SizedBox(height: 8),
-          CustomButton(
-            text: provider.status
-                ? 'WhatsApp ja conectado'
-                : (isBusy ? 'Gerando código...' : 'Gerar código de conexão'),
-            onPressed: canGenerate ? _gerarCodigo : null,
-            enabled: canGenerate,
           ),
           if (provider.status) ...[
             const SizedBox(height: 8),
-            Text(
-              'Para gerar um novo código, primeiro desconecte esta instância.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.grey[700],
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Para gerar um novo código, primeiro desconecte esta instância.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[700],
+                ),
               ),
             ),
           ],
@@ -304,12 +380,12 @@ class _VinculoWhatsappScreenState extends State<VinculoWhatsappScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.12),
+                color: Colors.orange.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
               ),
-              child: Row(
-                children: const [
+              child: const Row(
+                children: [
                   Icon(Icons.info_outline, color: Colors.orange),
                   SizedBox(width: 8),
                   Expanded(
@@ -325,18 +401,31 @@ class _VinculoWhatsappScreenState extends State<VinculoWhatsappScreen> {
           ],
           if (_codigoConexao != null || _qrBase64 != null) ...[
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.blue.withValues(alpha: 0.08),
+                    scheme.primary.withValues(alpha: 0.05),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Código de conexão gerado",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  const Row(
+                    children: [
+                      Icon(Icons.key_outlined, color: Colors.blue, size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        "Código de conexão gerado",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   if (_codigoExpiraEm != null)
@@ -357,6 +446,8 @@ class _VinculoWhatsappScreenState extends State<VinculoWhatsappScreen> {
                             style: const TextStyle(
                               fontSize: 24,
                               color: Colors.blue,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.2,
                             ),
                           ),
                         ),
@@ -376,7 +467,7 @@ class _VinculoWhatsappScreenState extends State<VinculoWhatsappScreen> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: Colors.blue.withOpacity(0.2),
+                            color: Colors.blue.withValues(alpha: 0.2),
                           ),
                         ),
                         child: Image.memory(
@@ -402,20 +493,32 @@ class _VinculoWhatsappScreenState extends State<VinculoWhatsappScreen> {
             ),
             const SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.all(12),
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.white.withValues(alpha: 0.88),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: scheme.outline.withValues(alpha: 0.08)),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Passo a passo',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.list_alt_outlined,
+                        color: scheme.primary,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Passo a passo',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 8),
-                  Text(
+                  const SizedBox(height: 8),
+                  const Text(
                     '1. Gere o código aqui no app\n'
                     '2. No WhatsApp, toque em Dispositivos conectados\n'
                     '3. Escolha Conectar com número de telefone\n'
@@ -431,6 +534,44 @@ class _VinculoWhatsappScreenState extends State<VinculoWhatsappScreen> {
           //   onPressed: _carregarStatus,
           //   child: const Text("Verificar conexão"),
           // ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WhatsappPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _WhatsappPill({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.86),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );

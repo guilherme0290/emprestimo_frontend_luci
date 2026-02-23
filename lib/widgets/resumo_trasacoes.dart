@@ -4,12 +4,10 @@ import 'package:emprestimos_app/models/transacoes.dart';
 import 'package:emprestimos_app/models/vendedor.dart';
 import 'package:emprestimos_app/providers/auth_provider.dart';
 import 'package:emprestimos_app/providers/caixa_provider.dart';
-import 'package:emprestimos_app/providers/emprestimo_provider.dart';
 import 'package:emprestimos_app/providers/transacoes_provider.dart';
 import 'package:emprestimos_app/providers/vendedor_provider.dart';
 import 'package:emprestimos_app/widgets/range_datas.dart';
 import 'package:emprestimos_app/widgets/subtotal_transacoes_widget.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
@@ -37,45 +35,33 @@ class _TransacoesResumoCardState extends State<TransacoesResumoCard>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final transacoesProvider =
-          Provider.of<TransacoesProvider>(context, listen: false);
-      final vendedorProvider =
-          Provider.of<VendedorProvider>(context, listen: false);
-      final caixaProvider = Provider.of<CaixaProvider>(context, listen: false);
+      try {
+        final provider =
+            Provider.of<TransacoesProvider>(context, listen: false);
+        final vendedorProvider =
+            Provider.of<VendedorProvider>(context, listen: false);
+        final caixaProvider = Provider.of<CaixaProvider>(context, listen: false);
 
-      // Descobre o role
-      final roleStr = authProvider.loginResponse?.role ?? '';
-      final roleEnum = Role.values.firstWhere(
-        (r) => r.name == roleStr,
-        orElse: () => Role.EMPRESA,
-      );
-
-      // Id do usuário logado (nesse caso, vendedor)
-      final vendedorIdLogado = authProvider.loginResponse?.usuario.id;
-
-      setState(() {
-        _isEmpresa = roleEnum == Role.EMPRESA;
-        _vendedorLogadoId = vendedorIdLogado;
-      });
-
-      // Busca inicial de transações
-      await transacoesProvider.buscarTransacoesCaixa(
-        dias: 7,
-        tipo: 'TODOS',
-        vendedorId: _isEmpresa ? null : _vendedorLogadoId,
-      );
-
-      // Empresa enxerga caixas e lista de vendedores para filtro
-      if (_isEmpresa) {
+        await provider.buscarTransacoesCaixa(
+          dias: 7,
+          tipo: 'TODOS',
+        );
+        if (!mounted) return;
         await caixaProvider.listarCaixas();
+        if (!mounted) return;
         await vendedorProvider.listarVendedores();
+        if (mounted) setState(() {});
+      } catch (e) {
+        debugPrint('Erro ao carregar resumo de transações: $e');
       }
-
-      if (mounted) setState(() {});
     });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   int _periodoEmDias(String periodo) {

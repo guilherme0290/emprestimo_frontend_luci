@@ -323,24 +323,89 @@ class _EscolherPlanoScreenState extends State<EscolherPlanoScreen> {
   }
 
   void _iniciarAssinaturaGooglePlay(Plano? plano) async {
-    Plano? planoSelecionado;
-    if (plano != null) {
-      planoSelecionado = plano;
-    } else {
-      final provider = Provider.of<PlanoProvider>(context, listen: false);
-      await provider.getPlanoByEmpresaId(_empresaTemporariaId!).then((value) {
-        planoSelecionado = provider.planoSelecionado!;
-      });
-    }
+    try {
+      if (kIsWeb) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ativação pela Play Store disponível apenas no app Android.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
-    if (planoSelecionado != null) {
-      final productId = planoSelecionado!.productIdGooglePlay;
-      final response =
-          await InAppPurchase.instance.queryProductDetails({productId!});
+      Plano? planoSelecionado;
+      if (plano != null) {
+        planoSelecionado = plano;
+      } else {
+        if (_empresaTemporariaId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Empresa não identificada para ativar assinatura.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        final provider = Provider.of<PlanoProvider>(context, listen: false);
+        await provider.getPlanoByEmpresaId(_empresaTemporariaId!).then((value) {
+          planoSelecionado = provider.planoSelecionado;
+        });
+      }
+
+      final productId = planoSelecionado?.productIdGooglePlay?.trim();
+      if (planoSelecionado == null || productId == null || productId.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Plano sem produto configurado na Google Play.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final billing = InAppPurchase.instance;
+      final disponivel = await billing.isAvailable();
+      if (!disponivel) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Google Play indisponível no momento.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final response = await billing.queryProductDetails({productId});
+      if (response.error != null ||
+          response.productDetails.isEmpty ||
+          response.notFoundIDs.isNotEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Assinatura não encontrada na Play Store. Verifique o produto do plano.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       final produto = response.productDetails.first;
       final param = PurchaseParam(productDetails: produto);
-      await InAppPurchase.instance.buyNonConsumable(purchaseParam: param);
+      await billing.buyNonConsumable(purchaseParam: param);
+      if (!mounted) return;
       Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao iniciar assinatura: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
