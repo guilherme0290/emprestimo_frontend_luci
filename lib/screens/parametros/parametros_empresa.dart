@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import '../../core/theme/theme.dart';
 import '../../core/util.dart';
 import '../../models/parametro.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/empresa_provider.dart';
 import '../../providers/parametros_provider.dart';
 import '../../widgets/input_field.dart';
 import '../../widgets/custom_button.dart';
@@ -30,11 +32,16 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
   bool permitirBaixaParcial = false;
   bool obrigarVendedorVenda = false;
   bool permitirVendedorTodosClientes = false;
+  bool permitirEditarClienteVendedor = false;
+  bool permitirExcluirClienteVendedor = false;
+  bool permitirExcluirContasReceberVendedor = false;
   bool cobrarJurosAtraso = false;
   String jurosAtrasoTipo = "PERCENTUAL";
   bool _atualizandoObrigarVendedorVenda = false;
   bool _atualizandoPermitirVendedorTodosClientes = false;
   bool _isLoading = true;
+  bool _planoPermitePermissoesVendedor = false;
+  static const Set<int> _planosComPermissoesVendedor = {3, 4};
 
   @override
   void initState() {
@@ -50,6 +57,15 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
     setState(() => _isLoading = true);
     final parametroProvider =
         Provider.of<ParametroProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final empresaProvider =
+        Provider.of<EmpresaProvider>(context, listen: false);
+
+    final planoId = empresaProvider.empresa?.planoId ??
+        authProvider.loginResponse?.plano?.id ??
+        0;
+    _planoPermitePermissoesVendedor =
+        _planosComPermissoesVendedor.contains(planoId);
 
     await parametroProvider.buscarParametrosEmpresa();
 
@@ -85,6 +101,19 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
             .buscarParametroEmpresaChave("COBRAR_JUROS_ATRASO")
             ?.valor ??
         "false";
+    final permitirEditarClienteVendedorParam = parametroProvider
+            .buscarParametroEmpresaChave("PERMITIR_EDITAR_CLIENTE_EMPRESA")
+            ?.valor ??
+        "false";
+    final permitirExcluirClienteVendedorParam = parametroProvider
+            .buscarParametroEmpresaChave("PERMITIR_EXCLUIR_CLIENTE_EMPRESA")
+            ?.valor ??
+        "false";
+    final permitirExcluirContasReceberVendedorParam = parametroProvider
+            .buscarParametroEmpresaChave(
+                "PERMITIR_EXCLUIR_CONTAS_RECEBER_EMPRESA")
+            ?.valor ??
+        "false";
     final jurosAtrasoTipoParam = parametroProvider
             .buscarParametroEmpresaChave("JUROS_ATRASO_TIPO")
             ?.valor ??
@@ -109,6 +138,12 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
       obrigarVendedorVenda = obrigarVendedor.toLowerCase() == 'true';
       permitirVendedorTodosClientes =
           permitirTodosClientes.toLowerCase() == 'true';
+      permitirEditarClienteVendedor =
+          permitirEditarClienteVendedorParam.toLowerCase() == 'true';
+      permitirExcluirClienteVendedor =
+          permitirExcluirClienteVendedorParam.toLowerCase() == 'true';
+      permitirExcluirContasReceberVendedor =
+          permitirExcluirContasReceberVendedorParam.toLowerCase() == 'true';
       limiteContasReceberEmAbertoPorClienteController.text =
           limiteContasReceberEmAbertoPorCliente;
       cobrarJurosAtraso = cobrarJurosAtrasoParam.toLowerCase() == 'true';
@@ -207,13 +242,59 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
       ),
     );
 
+    bool sucesso8 = true;
+    bool sucesso9 = true;
+    bool sucesso10 = true;
+
+    if (_planoPermitePermissoesVendedor) {
+      sucesso8 = await parametroProvider.atualizarParametro(
+        Parametro(
+          id: parametroProvider
+              .buscarParametroEmpresaChave("PERMITIR_EDITAR_CLIENTE_EMPRESA")
+              ?.id,
+          chave: "PERMITIR_EDITAR_CLIENTE_EMPRESA",
+          valor: permitirEditarClienteVendedor.toString(),
+          tipoReferencia: "EMPRESA",
+          referenciaId: empresaId,
+        ),
+      );
+
+      sucesso9 = await parametroProvider.atualizarParametro(
+        Parametro(
+          id: parametroProvider
+              .buscarParametroEmpresaChave("PERMITIR_EXCLUIR_CLIENTE_EMPRESA")
+              ?.id,
+          chave: "PERMITIR_EXCLUIR_CLIENTE_EMPRESA",
+          valor: permitirExcluirClienteVendedor.toString(),
+          tipoReferencia: "EMPRESA",
+          referenciaId: empresaId,
+        ),
+      );
+
+      sucesso10 = await parametroProvider.atualizarParametro(
+        Parametro(
+          id: parametroProvider
+              .buscarParametroEmpresaChave(
+                  "PERMITIR_EXCLUIR_CONTAS_RECEBER_EMPRESA")
+              ?.id,
+          chave: "PERMITIR_EXCLUIR_CONTAS_RECEBER_EMPRESA",
+          valor: permitirExcluirContasReceberVendedor.toString(),
+          tipoReferencia: "EMPRESA",
+          referenciaId: empresaId,
+        ),
+      );
+    }
+
     if (sucesso1 &&
         sucesso2 &&
         sucesso3 &&
         sucesso4 &&
         sucesso5 &&
         sucesso6 &&
-        sucesso7) {
+        sucesso7 &&
+        sucesso8 &&
+        sucesso9 &&
+        sucesso10) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text("Parâmetros da empresa salvos com sucesso!"),
         backgroundColor: Colors.green,
@@ -447,14 +528,52 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
                           : _atualizarObrigarVendedorVenda,
                     ),
                     const SizedBox(height: 10),
-                    SwitchListTile(
-                      title: const Text("Vendedor pode ver todos os clientes"),
-                      activeColor: AppTheme.primaryColor,
-                      value: permitirVendedorTodosClientes,
-                      onChanged: _atualizandoPermitirVendedorTodosClientes
-                          ? null
-                          : _atualizarPermitirVendedorTodosClientes,
-                    ),
+                    if (_planoPermitePermissoesVendedor) ...[
+                      SwitchListTile(
+                        title:
+                            const Text("Vendedor pode ver todos os clientes"),
+                        activeColor: AppTheme.primaryColor,
+                        value: permitirVendedorTodosClientes,
+                        onChanged: _atualizandoPermitirVendedorTodosClientes
+                            ? null
+                            : _atualizarPermitirVendedorTodosClientes,
+                      ),
+                      const SizedBox(height: 20),
+                      _buildSectionTitle("Permissões Gerais de Vendedor"),
+                      SwitchListTile(
+                        title: const Text(
+                            "Permitir vendedor editar clientes (todos)"),
+                        activeColor: AppTheme.primaryColor,
+                        value: permitirEditarClienteVendedor,
+                        onChanged: (value) {
+                          setState(() {
+                            permitirEditarClienteVendedor = value;
+                          });
+                        },
+                      ),
+                      SwitchListTile(
+                        title: const Text(
+                            "Permitir vendedor excluir clientes (todos)"),
+                        activeColor: AppTheme.primaryColor,
+                        value: permitirExcluirClienteVendedor,
+                        onChanged: (value) {
+                          setState(() {
+                            permitirExcluirClienteVendedor = value;
+                          });
+                        },
+                      ),
+                      SwitchListTile(
+                        title: const Text(
+                            "Permitir vendedor excluir contas a receber (todos)"),
+                        activeColor: AppTheme.primaryColor,
+                        value: permitirExcluirContasReceberVendedor,
+                        onChanged: (value) {
+                          setState(() {
+                            permitirExcluirContasReceberVendedor = value;
+                          });
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 30),
                     CustomButton(
                       text: "Salvar Parâmetros",

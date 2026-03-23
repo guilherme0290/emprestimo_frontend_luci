@@ -127,7 +127,7 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
             children: [
               _buildDateField(),
               const SizedBox(height: 12),
-              if (caixas.isNotEmpty)
+              if (!_isVendedor && caixas.isNotEmpty)
                 DropdownButtonFormField<int>(
                   initialValue: caixaValue,
                   items: caixas
@@ -142,7 +142,7 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
-              const SizedBox(height: 12),
+              if (!_isVendedor && caixas.isNotEmpty) const SizedBox(height: 12),
               if (vendedores.isNotEmpty)
                 DropdownButtonFormField<int>(
                   initialValue: vendedorValue,

@@ -18,7 +18,9 @@ import 'package:provider/provider.dart';
 import '../../core/theme/theme.dart';
 
 class HomeVendedorScreen extends StatefulWidget {
-  const HomeVendedorScreen({super.key});
+  final VoidCallback? onOpenDrawer;
+
+  const HomeVendedorScreen({super.key, this.onOpenDrawer});
 
   @override
   State<HomeVendedorScreen> createState() => _HomeVendedorScreenState();
@@ -58,6 +60,11 @@ class _HomeVendedorScreenState extends State<HomeVendedorScreen> {
 
         return Scaffold(
           appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.menu, color: Colors.white),
+              onPressed: widget.onOpenDrawer,
+              tooltip: "Menu",
+            ),
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

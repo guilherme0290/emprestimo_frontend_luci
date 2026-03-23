@@ -77,6 +77,8 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
   bool _hasFocus = false;
   bool _isEmpresa = false;
   bool _statusAtivo = true;
+  bool _podeSalvarEdicaoCliente = true;
+  bool _carregandoPermissaoSalvar = false;
 
   String? ufSelecionada;
   List<Cidade> cidades = [];
@@ -94,6 +96,7 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
 
     Future.microtask(() {
       _verificarTipoUsuario();
+      _carregarPermissaoSalvarEdicao();
     });
 
     if (widget.cliente != null) {
@@ -133,10 +136,61 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
   }
 
   Future<void> _verificarTipoUsuario() async {
-    final authProvider =
-        await Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     setState(() {
       _isEmpresa = authProvider.role == Role.EMPRESA;
+    });
+  }
+
+  Future<void> _carregarPermissaoSalvarEdicao() async {
+    if (widget.cliente == null) {
+      setState(() {
+        _podeSalvarEdicaoCliente = true;
+        _carregandoPermissaoSalvar = false;
+      });
+      return;
+    }
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await authProvider.carregarDadosSalvos();
+    if (!mounted) return;
+
+    final isVendedor = authProvider.role == Role.VENDEDOR;
+    if (!isVendedor) {
+      setState(() {
+        _podeSalvarEdicaoCliente = true;
+        _carregandoPermissaoSalvar = false;
+      });
+      return;
+    }
+
+    final vendedorId = authProvider.loginResponse?.usuario.id;
+    if (vendedorId == null) {
+      setState(() {
+        _podeSalvarEdicaoCliente = false;
+        _carregandoPermissaoSalvar = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _carregandoPermissaoSalvar = true;
+    });
+
+    final parametroProvider =
+        Provider.of<ParametroProvider>(context, listen: false);
+    await parametroProvider.buscarParametrosEmpresa();
+    await parametroProvider.buscarParametrosVendedor(vendedorId);
+    if (!mounted) return;
+
+    final permitido = parametroProvider.possuiPermissaoVendedorComRegraEmpresa(
+      chaveEmpresa: "PERMITIR_EDITAR_CLIENTE_EMPRESA",
+      chaveVendedor: "PERMITIR_EDITAR_CLIENTE",
+    );
+
+    setState(() {
+      _podeSalvarEdicaoCliente = permitido;
+      _carregandoPermissaoSalvar = false;
     });
   }
 
@@ -397,9 +451,9 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
                     leadingIcon: const Icon(Icons.credit_card,
                         color: AppTheme.primaryColor),
                     inputFormatters: [cpfFormatter],
-                    validator: (value) => Util.isCpfCnpjValid(
-                        cpfController.text,
-                        obrigatorio: false),
+                    validator: (value) => cpfController.text.isNotEmpty
+                        ? Util.isCpfCnpjValid(cpfController.text)
+                        : null,
                   ),
                   const SizedBox(height: 10),
                   InputCustomizado(
@@ -418,10 +472,9 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
                     type: TextInputType.emailAddress,
                     leadingIcon:
                         const Icon(Icons.email, color: AppTheme.primaryColor),
-                    validator: (value) =>
-                        emailController.text.isNotEmpty
-                            ? Util.isEmailValid(emailController.text)
-                            : null,
+                    validator: (value) => emailController.text.isNotEmpty
+                        ? Util.isEmailValid(emailController.text)
+                        : null,
                   ),
                   const SizedBox(height: 10),
                   _buildSectionTitle("Endereço"),
@@ -475,11 +528,30 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
                         color: AppTheme.primaryColor),
                   ),
                   const SizedBox(height: 10),
+                  if (widget.cliente != null &&
+                      !_isEmpresa &&
+                      !_podeSalvarEdicaoCliente)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Text(
+                        "Visualização apenas: você não tem permissão para salvar alterações deste cliente.",
+                        style: TextStyle(
+                          color: Colors.orange.shade800,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   provider.isLoading
                       ? const CircularProgressIndicator()
                       : CustomButton(
                           text: "Salvar Cliente",
-                          onPressed: _salvarCliente,
+                          onPressed: (widget.cliente != null &&
+                                      !_isEmpresa &&
+                                      !_podeSalvarEdicaoCliente) ||
+                                  _carregandoPermissaoSalvar
+                              ? null
+                              : _salvarCliente,
                           backgroundColor:
                               Theme.of(context).colorScheme.primary,
                         ),

@@ -103,7 +103,7 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
               },
             ),
             const SizedBox(height: 12),
-            if (caixas.isNotEmpty)
+            if (!isVendedor && caixas.isNotEmpty)
               DropdownButtonFormField<String>(
                 value: caixaValue,
                 items: caixas
@@ -180,7 +180,9 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
                         dataInicio: dataInicio?.toIso8601String(),
                         dataFim: dataFim?.toIso8601String(),
                         vencimentoOuPagamento: vencOuPgto,
-                        caixaId: _buscarIdCaixaSelecionado(context),
+                        caixaId: isVendedor
+                            ? null
+                            : _buscarIdCaixaSelecionado(context),
                         vendedorId: isVendedor
                             ? authProvider.loginResponse?.usuario.id
                             : _buscarIdVendedorSelecionado(context),

@@ -67,8 +67,8 @@ class _SolicitacoesParametrosScreenState
   @override
   Widget build(BuildContext context) {
     final empresa = Provider.of<EmpresaProvider>(context).empresa;
-    final possuiModuloVendedor =
-        empresa?.plano?.nome.toUpperCase().contains("PREMIUM") ?? false;
+    final planoId = empresa?.planoId ?? empresa?.plano?.id ?? 0;
+    final possuiModuloVendedor = planoId == 3 || planoId == 4;
 
     if (!possuiModuloVendedor) {
       return Scaffold(

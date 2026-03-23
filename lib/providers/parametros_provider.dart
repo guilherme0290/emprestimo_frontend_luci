@@ -359,6 +359,57 @@ class ParametroProvider with ChangeNotifier {
     }
   }
 
+  bool valorParametroEmpresaBool(
+    String chave, {
+    bool defaultValue = false,
+  }) {
+    final valor = buscarParametroEmpresaChave(chave)?.valor;
+    return _parseBool(valor, defaultValue: defaultValue);
+  }
+
+  bool valorParametroVendedorBool(
+    String chave, {
+    bool defaultValue = false,
+  }) {
+    final parametro = _parametrosVendedor
+        .where((p) => p.chave == chave)
+        .cast<ParametroVendedor?>()
+        .firstWhere((p) => p != null, orElse: () => null);
+
+    if (parametro == null) return defaultValue;
+    final convertido = parametro.valorConvertido;
+    if (convertido is bool) return convertido;
+    return _parseBool(parametro.valor, defaultValue: defaultValue);
+  }
+
+  bool possuiPermissaoVendedorComRegraEmpresa({
+    required String chaveEmpresa,
+    required String chaveVendedor,
+    bool defaultEmpresa = false,
+    bool defaultVendedor = false,
+  }) {
+    final permitidoEmpresa = valorParametroEmpresaBool(
+      chaveEmpresa,
+      defaultValue: defaultEmpresa,
+    );
+    final permitidoVendedor = valorParametroVendedorBool(
+      chaveVendedor,
+      defaultValue: defaultVendedor,
+    );
+    return permitidoEmpresa || permitidoVendedor;
+  }
+
+  bool _parseBool(
+    String? value, {
+    bool defaultValue = false,
+  }) {
+    if (value == null) return defaultValue;
+    final normalizado = value.trim().toLowerCase();
+    if (normalizado == 'true' || normalizado == '1') return true;
+    if (normalizado == 'false' || normalizado == '0') return false;
+    return defaultValue;
+  }
+
   bool podeCriarNovoContasReceber(int emprestimosEmAberto) {
     final clienteParam = buscarParametroPorChave("LIMITE_EMPRESTIMO_CLIENTE");
     final empresaParam =

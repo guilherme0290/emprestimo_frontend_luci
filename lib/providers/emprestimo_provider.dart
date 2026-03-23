@@ -87,6 +87,63 @@ class ContasReceberProvider with ChangeNotifier {
     }
   }
 
+  Future<void> buscarContasReceberPorQuery(String query) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await Api.loadAuthToken();
+      String path = '/contasreceber/search';
+      final params = <String, dynamic>{'q': query};
+
+      if (_authProvider.loginResponse?.role == "VENDEDOR") {
+        params['vendedorId'] = _authProvider.loginResponse!.usuario.id;
+      }
+
+      final response = await Api.dio.get(path, queryParameters: params);
+
+      final data = response.data;
+      late final List list;
+      if (data is List) {
+        list = data;
+      } else {
+        // caso venha envelopado
+        final api = ApiResponse<List<dynamic>>.fromJson(
+          data,
+          (json) => json as List<dynamic>,
+        );
+        if (api.sucesso == false) {
+          _errorMessage = api.message;
+          _emprestimos = [];
+          return;
+        }
+        list = api.data ?? [];
+      }
+
+      _emprestimos = list
+          .map((e) => ContasReceberDTO.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      if (_authProvider.loginResponse?.role == "VENDEDOR") {
+        final vendedorLogadoId = _authProvider.loginResponse?.usuario.id;
+        if (vendedorLogadoId != null) {
+          _emprestimos = _emprestimos.where((conta) {
+            final vendedorContaId =
+                conta.vendedorId ?? conta.cliente.vendedorId;
+            return vendedorContaId == vendedorLogadoId;
+          }).toList();
+        }
+      }
+    } catch (e) {
+      _errorMessage = "Erro inesperado ao buscar contratos: $e";
+      _emprestimos = [];
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<ContasReceberDTO?> criarContasReceber(
       NovoContasReceberDTO emprestimo) async {
     _isLoading = true;
@@ -215,53 +272,6 @@ class ContasReceberProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _errorMessage = "Erro inesperado ao buscar contas a receber: $e";
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  // em ContasReceberProvider
-  Future<void> buscarContasReceberPorQuery(String query) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      await Api.loadAuthToken();
-      String path = '/contasreceber/search';
-      final params = <String, dynamic>{'q': query};
-
-      if (_authProvider.loginResponse?.role == "VENDEDOR") {
-        params['vendedorId'] = _authProvider.loginResponse!.usuario.id;
-      }
-
-      final response = await Api.dio.get(path, queryParameters: params);
-
-      final data = response.data;
-      late final List list;
-      if (data is List) {
-        list = data;
-      } else {
-        // caso venha envelopado
-        final api = ApiResponse<List<dynamic>>.fromJson(
-          data,
-          (json) => json as List<dynamic>,
-        );
-        if (api.sucesso == false) {
-          _errorMessage = api.message;
-          _emprestimos = [];
-          return;
-        }
-        list = api.data ?? [];
-      }
-
-      _emprestimos = list
-          .map((e) => ContasReceberDTO.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      _errorMessage = "Erro inesperado ao buscar contratos: $e";
-      _emprestimos = [];
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -723,6 +733,10 @@ class ContasReceberProvider with ChangeNotifier {
 
     try {
       await Api.loadAuthToken();
+      final isVendedor = _authProvider.loginResponse?.role == "VENDEDOR";
+      final vendedorLogadoId = _authProvider.loginResponse?.usuario.id;
+      final vendedorIdEfetivo = isVendedor ? vendedorLogadoId : vendedorId;
+      final caixaIdEfetivo = isVendedor ? null : caixaId;
 
       final response =
           await Api.dio.get("/parcelas/agrupamento", queryParameters: {
@@ -734,8 +748,8 @@ class ContasReceberProvider with ChangeNotifier {
           'dataFim': FormatData.formatarDataYYYYAADD(dataFim),
         if (vencimentoOuPagamento != null)
           'vencimentoOuPagamento': vencimentoOuPagamento,
-        if (caixaId != null) 'caixaId': caixaId,
-        if (vendedorId != null) 'vendedorId': vendedorId,
+        if (caixaIdEfetivo != null) 'caixaId': caixaIdEfetivo,
+        if (vendedorIdEfetivo != null) 'vendedorId': vendedorIdEfetivo,
       });
 
       final apiResponse = ApiResponse<List<dynamic>>.fromJson(
@@ -755,8 +769,8 @@ class ContasReceberProvider with ChangeNotifier {
           dataFim: dataFim,
           vencimentoOuPagamento: vencimentoOuPagamento,
           tipoPagamento: tipoPagamento,
-          caixaId: caixaId,
-          vendedorId: vendedorId,
+          caixaId: caixaIdEfetivo,
+          vendedorId: vendedorIdEfetivo,
         );
       } else {
         _errorMessage = apiResponse.message;
@@ -811,6 +825,10 @@ class ContasReceberProvider with ChangeNotifier {
     try {
       await Api.loadAuthToken();
       final f = _ultimoFiltro!;
+      final isVendedor = _authProvider.loginResponse?.role == "VENDEDOR";
+      final vendedorLogadoId = _authProvider.loginResponse?.usuario.id;
+      final vendedorIdEfetivo = isVendedor ? vendedorLogadoId : f.vendedorId;
+      final caixaIdEfetivo = isVendedor ? null : f.caixaId;
       final response =
           await Api.dio.get('/parcelas/detalhes', queryParameters: {
         'empresaId': empresaId.toString(),
@@ -819,8 +837,8 @@ class ContasReceberProvider with ChangeNotifier {
         'dataFim': f.dataFim,
         'vencimentoOuPagamento': f.vencimentoOuPagamento,
         'tipoPagamento': f.tipoPagamento,
-        'caixaId': f.caixaId?.toString(),
-        'vendedorId': f.vendedorId?.toString(),
+        'caixaId': caixaIdEfetivo?.toString(),
+        'vendedorId': vendedorIdEfetivo?.toString(),
       });
 
       final apiResponse = ApiResponse<List<dynamic>>.fromJson(

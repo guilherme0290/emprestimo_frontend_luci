@@ -150,8 +150,8 @@ class _RelatorioRecebimentosScreenState
             children: [
               _buildDateSelector(),
               const SizedBox(height: 12),
-              if (caixas.isNotEmpty)
-                DropdownButtonFormField<int>(
+              if (!_isVendedor && caixas.isNotEmpty)
+                DropdownButtonFormField<int?>(
                   initialValue: caixaValue,
                   items: caixas
                       .map((caixa) => DropdownMenuItem<int>(

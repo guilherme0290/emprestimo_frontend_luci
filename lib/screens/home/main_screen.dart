@@ -30,24 +30,28 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   bool _isSidebarCollapsed = false;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool get isWeb => kIsWeb || MediaQuery.of(context).size.width > 800;
   bool get isVendedor => widget.role == "VENDEDOR";
 
-  bool _isPlanoPremium(Plano? plano) {
-    final nome = plano?.nome?.toUpperCase() ?? '';
-    return nome.contains("PREMIUM");
+  bool _planoPermiteModuloVendedor(Plano? plano) {
+    final planoId = plano?.id ?? 0;
+    return planoId == 3 || planoId == 4;
   }
 
   List<Map<String, dynamic>> _buildMainMenus(
       {required bool isVendedor, required Plano? plano}) {
-    final isPlanoPremium = _isPlanoPremium(plano);
+    final isPlanoPremium = _planoPermiteModuloVendedor(plano);
     return [
       {
         "icon": Icons.home,
         "label": "Home",
-        "widget":
-            isVendedor ? const HomeVendedorScreen() : const HomeEmpresaScreen()
+        "widget": isVendedor
+            ? HomeVendedorScreen(
+                onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+              )
+            : const HomeEmpresaScreen()
       },
       {
         "icon": Icons.people,
@@ -126,6 +130,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildMobileScaffold(List<Map<String, dynamic>> mainMenus, int index,
       List<Map<String, dynamic>> sidebarMenus) {
     return Scaffold(
+      key: _scaffoldKey,
       // appBar: AppBar(
       //   title: Text(mainMenus[index]['label']),
       // ),

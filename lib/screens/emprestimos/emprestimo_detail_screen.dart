@@ -9,6 +9,7 @@ import 'package:emprestimos_app/models/mensagem_manual.dart';
 import 'package:emprestimos_app/core/role.dart';
 import 'package:emprestimos_app/providers/auth_provider.dart';
 import 'package:emprestimos_app/providers/mensagens_manuais_provider.dart';
+import 'package:emprestimos_app/providers/parametros_provider.dart';
 import 'package:emprestimos_app/services/relatorio_parcelas_pdf_service.dart';
 import 'package:emprestimos_app/screens/clientes/cliente_detail_screen.dart';
 import 'package:emprestimos_app/screens/config/mensagensAutomaticas/mensagens_manuais.dart';
@@ -54,6 +55,8 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen>
   late final AnimationController _swipeHintController;
   late final Animation<double> _swipeHintOffset;
   bool _showSwipeHint = true;
+  bool _carregandoPermissaoExclusaoContrato = false;
+  bool _podeExcluirContasReceberVendedor = false;
 
   @override
   void initState() {
@@ -96,6 +99,7 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen>
       _fetchContasReceber();
     }
     _carregarMensagensManuais();
+    _carregarPermissaoExclusaoContrato();
   }
 
   @override
@@ -105,7 +109,8 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen>
   }
 
   Future<void> _carregarMensagensManuais() async {
-    final provider = Provider.of<MensagensManuaisProvider>(context, listen: false);
+    final provider =
+        Provider.of<MensagensManuaisProvider>(context, listen: false);
     await provider.buscarMensagens();
     if (!mounted) return;
     setState(() {
@@ -149,6 +154,51 @@ class _ContasReceberDetailScreenState extends State<ContasReceberDetailScreen>
           _initializeParcelas();
         });
       }
+    });
+  }
+
+  Future<void> _carregarPermissaoExclusaoContrato() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await authProvider.carregarDadosSalvos();
+    if (!mounted) return;
+
+    final isVendedor = authProvider.role == Role.VENDEDOR;
+    if (!isVendedor) {
+      setState(() {
+        _podeExcluirContasReceberVendedor = true;
+        _carregandoPermissaoExclusaoContrato = false;
+      });
+      return;
+    }
+
+    final vendedorId = authProvider.loginResponse?.usuario.id;
+    if (vendedorId == null) {
+      setState(() {
+        _podeExcluirContasReceberVendedor = false;
+        _carregandoPermissaoExclusaoContrato = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _carregandoPermissaoExclusaoContrato = true;
+    });
+
+    final parametroProvider =
+        Provider.of<ParametroProvider>(context, listen: false);
+    await parametroProvider.buscarParametrosEmpresa();
+    await parametroProvider.buscarParametrosVendedor(vendedorId);
+
+    if (!mounted) return;
+
+    final permitido = parametroProvider.possuiPermissaoVendedorComRegraEmpresa(
+      chaveEmpresa: "PERMITIR_EXCLUIR_CONTAS_RECEBER_EMPRESA",
+      chaveVendedor: "PERMITIR_EXCLUIR_CONTAS_RECEBER",
+    );
+
+    setState(() {
+      _podeExcluirContasReceberVendedor = permitido;
+      _carregandoPermissaoExclusaoContrato = false;
     });
   }
 
@@ -339,7 +389,8 @@ Por favor, nos informe sobre o pagamento ou entre em contato para mais informaç
 Aguardamos seu retorno!
 """;
     final String totalContasReceber = Util.formatarMoeda(_emprestimo!.valor);
-    final String saldoDevedor = Util.formatarMoeda(_calcularSaldoDevedorContrato());
+    final String saldoDevedor =
+        Util.formatarMoeda(_calcularSaldoDevedorContrato());
     final String totalPagoContrato =
         Util.formatarMoeda(_calcularTotalPagoContrato());
     final String progressoParcela =
@@ -473,9 +524,8 @@ Aguardamos seu retorno!
       if (nome.isNotEmpty) return nome;
     } catch (_) {}
     try {
-      final nome = context.read<AuthProvider>().loginResponse?.usuario.nome
-              .trim() ??
-          "";
+      final nome =
+          context.read<AuthProvider>().loginResponse?.usuario.nome.trim() ?? "";
       if (nome.isNotEmpty) return nome;
     } catch (_) {}
     return "Empresa";
@@ -505,7 +555,8 @@ Aguardamos seu retorno!
     });
   }
 
-  void _abrirWhatsappParcelasPagasComMensagensAtualizadas(List<ParcelaDTO> parcelas) {
+  void _abrirWhatsappParcelasPagasComMensagensAtualizadas(
+      List<ParcelaDTO> parcelas) {
     if (parcelas.isEmpty) return;
     final String nomeCliente =
         _emprestimo?.cliente.nome ?? "Cliente Desconhecido";
@@ -652,8 +703,12 @@ Obrigado!
   PreferredSizeWidget _buildAppBar() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final bool isEmpresa = authProvider.role == Role.EMPRESA;
-    final bool podeExcluir =
+    final bool permitidoPorStatus =
         isEmpresa || _emprestimo!.statusContasReceber != 'QUITADO';
+    final bool permitidoPorPermissao = isEmpresa ||
+        (!_carregandoPermissaoExclusaoContrato &&
+            _podeExcluirContasReceberVendedor);
+    final bool podeExcluir = permitidoPorStatus && permitidoPorPermissao;
     return AppBar(
       backgroundColor: AppTheme.primaryColor,
       elevation: 0,

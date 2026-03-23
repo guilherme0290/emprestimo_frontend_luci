@@ -12,6 +12,7 @@ class ContasReceberDTO {
   final String dataUltimoVencimento;
   final String statusContasReceber;
   final int? empresaId;
+  final int? vendedorId;
   final String? vendedorNome;
   final Cliente cliente;
   final PenhoraDTO? penhora;
@@ -28,6 +29,7 @@ class ContasReceberDTO {
       required this.dataUltimoVencimento,
       required this.statusContasReceber,
       this.empresaId,
+      this.vendedorId,
       required this.cliente,
       this.vendedorNome,
       required this.parcelas,
@@ -36,6 +38,7 @@ class ContasReceberDTO {
       this.descricao});
 
   factory ContasReceberDTO.fromJson(Map<String, dynamic> json) {
+    final clienteJson = json['cliente'] as Map<String, dynamic>;
     return ContasReceberDTO(
       id: json['id'] as int,
       valor: (json['valor'] as num).toDouble(),
@@ -45,7 +48,9 @@ class ContasReceberDTO {
       dataUltimoVencimento: json['dataUltimoVencimento'] ?? '',
       statusContasReceber: json['statusContasReceber'] ?? '',
       empresaId: json['empresaId'] as int,
-      cliente: Cliente.fromJson(json['cliente']),
+      vendedorId:
+          (json['vendedorId'] as int?) ?? (clienteJson['vendedorId'] as int?),
+      cliente: Cliente.fromJson(clienteJson),
       vendedorNome: json['vendedorNome'] ?? '',
       parcelas: (json['parcelas'] as List<dynamic>)
           .map((p) => ParcelaDTO.fromJson(p as Map<String, dynamic>))
@@ -69,8 +74,11 @@ class ContasReceberDTO {
         dataUltimoVencimento: dataUltimoVencimento,
         statusContasReceber: statusContasReceber,
         empresaId: empresaId,
+        vendedorId: vendedorId,
         cliente: cliente,
+        vendedorNome: vendedorNome,
         parcelas: parcelas ?? this.parcelas,
+        penhora: penhora,
         dataContrato: dataContrato,
         descricao: descricao);
   }

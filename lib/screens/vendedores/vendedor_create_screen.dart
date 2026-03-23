@@ -6,6 +6,7 @@ import 'package:emprestimos_app/models/vendedor.dart';
 import 'package:emprestimos_app/providers/auth_provider.dart';
 import 'package:emprestimos_app/providers/cidade_provider.dart';
 import 'package:emprestimos_app/providers/cliente_provider.dart';
+import 'package:emprestimos_app/providers/empresa_provider.dart';
 import 'package:emprestimos_app/providers/parametros_provider.dart';
 import 'package:emprestimos_app/providers/vendedor_provider.dart';
 import 'package:emprestimos_app/screens/vendedores/vendedor_inativacao.dart';
@@ -70,13 +71,27 @@ class _VendedorFormScreenState extends State<VendedorFormScreen> {
   String? _permissoesError;
   List<ParametroVendedor> _permissoes = [];
   int? _permissaoAtualizadaId;
-  bool _empresaPermiteTodosClientes = false;
+  Map<String, bool> _permissoesEmpresaAtivas = {};
+  bool _planoPermitePermissoesVendedor = false;
+  static const Set<int> _planosComPermissoesVendedor = {3, 4};
 
   static const Map<String, String> _permissaoLabels = {
     "PERMITIR_CADASTRO_CLIENTE": "Permitir cadastrar cliente",
     "PERMITIR_CADASTRO_CONTAS_RECEBER": "Permite criar contas a receber",
     "PERMITIR_VENDEDOR_ACESSAR_TODOS_CLIENTES":
         "Este vendedor pode ver todos os clientes",
+    "PERMITIR_EDITAR_CLIENTE": "Permitir editar clientes",
+    "PERMITIR_EXCLUIR_CLIENTE": "Permitir excluir clientes",
+    "PERMITIR_EXCLUIR_CONTAS_RECEBER": "Permitir excluir contas a receber",
+  };
+
+  static const Map<String, String> _chavesEmpresaPorPermissaoVendedor = {
+    "PERMITIR_VENDEDOR_ACESSAR_TODOS_CLIENTES":
+        "PERMITIR_VENDEDOR_ACESSAR_TODOS_CLIENTES_EMPRESA",
+    "PERMITIR_EDITAR_CLIENTE": "PERMITIR_EDITAR_CLIENTE_EMPRESA",
+    "PERMITIR_EXCLUIR_CLIENTE": "PERMITIR_EXCLUIR_CLIENTE_EMPRESA",
+    "PERMITIR_EXCLUIR_CONTAS_RECEBER":
+        "PERMITIR_EXCLUIR_CONTAS_RECEBER_EMPRESA",
   };
 
   @override
@@ -109,13 +124,23 @@ class _VendedorFormScreenState extends State<VendedorFormScreen> {
 
   void _carregarContextoUsuario() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final empresaProvider =
+        Provider.of<EmpresaProvider>(context, listen: false);
+
+    final planoIdAuth = authProvider.loginResponse?.plano?.id;
+    final planoIdEmpresa = empresaProvider.empresa?.planoId;
+    final planoId = planoIdEmpresa ?? planoIdAuth ?? 0;
+
     setState(() {
       _isEmpresa = authProvider.role == Role.EMPRESA;
       _usuarioId = authProvider.loginResponse?.usuario.id;
+      _planoPermitePermissoesVendedor =
+          _planosComPermissoesVendedor.contains(planoId);
     });
   }
 
   Future<void> _carregarPermissoes() async {
+    if (!_planoPermitePermissoesVendedor) return;
     if (widget.vendedor?.id == null) return;
     setState(() {
       _isLoadingPermissoes = true;
@@ -129,15 +154,17 @@ class _VendedorFormScreenState extends State<VendedorFormScreen> {
 
     if (!mounted) return;
 
-    final parametroEmpresa = parametroProvider.buscarParametroEmpresaChave(
-        "PERMITIR_VENDEDOR_ACESSAR_TODOS_CLIENTES_EMPRESA");
-    final empresaPermite =
-        parametroEmpresa?.valor.toLowerCase() == 'true';
+    final permissoesEmpresa = <String, bool>{};
+    for (final entry in _chavesEmpresaPorPermissaoVendedor.entries) {
+      final permitido =
+          parametroProvider.valorParametroEmpresaBool(entry.value);
+      permissoesEmpresa[entry.key] = permitido;
+    }
 
     setState(() {
       _permissoes = parametroProvider.parametrosVendedor;
       _permissoesError = parametroProvider.errorMessage;
-      _empresaPermiteTodosClientes = empresaPermite;
+      _permissoesEmpresaAtivas = permissoesEmpresa;
       _isLoadingPermissoes = false;
     });
   }
@@ -156,6 +183,26 @@ class _VendedorFormScreenState extends State<VendedorFormScreen> {
     final chaves = _permissaoLabels.keys.toList();
     final idx = chaves.indexOf(chave);
     return idx == -1 ? 999 : idx;
+  }
+
+  bool _permiteParaTodosVendedores(String chaveVendedor) {
+    return _permissoesEmpresaAtivas[chaveVendedor] ?? false;
+  }
+
+  String _grupoPermissao(String chave) {
+    switch (chave) {
+      case "PERMITIR_CADASTRO_CLIENTE":
+      case "PERMITIR_CADASTRO_CONTAS_RECEBER":
+        return "Cadastros";
+      case "PERMITIR_EDITAR_CLIENTE":
+      case "PERMITIR_EXCLUIR_CLIENTE":
+      case "PERMITIR_VENDEDOR_ACESSAR_TODOS_CLIENTES":
+        return "Clientes";
+      case "PERMITIR_EXCLUIR_CONTAS_RECEBER":
+        return "Contas a Receber";
+      default:
+        return "Outras";
+    }
   }
 
   ParametroVendedor _comValor(
@@ -401,8 +448,10 @@ class _VendedorFormScreenState extends State<VendedorFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final exibirAbaPermissoes = _planoPermitePermissoesVendedor;
+
     return DefaultTabController(
-      length: 2,
+      length: exibirAbaPermissoes ? 2 : 1,
       child: Scaffold(
           appBar: AppBar(
             title: Text(
@@ -415,9 +464,9 @@ class _VendedorFormScreenState extends State<VendedorFormScreen> {
                   labelColor: AppTheme.primaryColor,
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: AppTheme.primaryColor,
-                  tabs: const [
-                    Tab(text: "Dados"),
-                    Tab(text: "Permissões"),
+                  tabs: [
+                    const Tab(text: "Dados"),
+                    if (exibirAbaPermissoes) const Tab(text: "Permissões"),
                   ],
                 ),
               ),
@@ -427,7 +476,7 @@ class _VendedorFormScreenState extends State<VendedorFormScreen> {
             return TabBarView(
               children: [
                 _buildDadosTab(provider),
-                _buildPermissoesTab(),
+                if (exibirAbaPermissoes) _buildPermissoesTab(),
               ],
             );
           })),
@@ -602,46 +651,69 @@ class _VendedorFormScreenState extends State<VendedorFormScreen> {
             _ordemPermissao(b.chave),
           ));
 
-    return AppBackground(
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: permissoesOrdenadas.length,
-        itemBuilder: (context, index) {
-          final parametro = permissoesOrdenadas[index];
-          final isPendente = parametro.parametroPendente;
-          final isAtualizada = _permissaoAtualizadaId == parametro.id;
-          final bool indicadorPermissaoIndividual =
-              parametro.chave == "PERMITIR_VENDEDOR_ACESSAR_TODOS_CLIENTES" &&
-                  !_empresaPermiteTodosClientes &&
-                  _valorPermissao(parametro);
-          final String? subtitulo = isPendente
-              ? "Pendente de aprovação"
-              : (indicadorPermissaoIndividual
-                  ? "Ativo por permissão individual (empresa bloqueada)"
-                  : null);
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: SwitchListTile(
-              title: Text(_labelPermissao(parametro.chave)),
-              subtitle: subtitulo != null
-                  ? Text(
-                      subtitulo,
-                      style: TextStyle(
-                        color: isPendente ? Colors.orange : Colors.blueGrey,
-                      ),
-                    )
-                  : null,
-              secondary: isAtualizada
-                  ? const Icon(Icons.check_circle, color: Colors.green)
-                  : null,
-              value: _valorPermissao(parametro),
-              onChanged: isPendente
-                  ? null
-                  : (novoValor) => _alterarPermissao(parametro, novoValor),
-              activeColor: AppTheme.primaryColor,
+    final itens = <Widget>[];
+    String? grupoAtual;
+
+    for (final parametro in permissoesOrdenadas) {
+      final grupo = _grupoPermissao(parametro.chave);
+      if (grupoAtual != grupo) {
+        grupoAtual = grupo;
+        itens.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 8),
+            child: Text(
+              grupo,
+              style: AppTheme.titleStyle
+                  .copyWith(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-          );
-        },
+          ),
+        );
+      }
+
+      final isPendente = parametro.parametroPendente;
+      final isAtualizada = _permissaoAtualizadaId == parametro.id;
+      final bool ativoEmpresa = _permiteParaTodosVendedores(parametro.chave);
+      final bool ativoIndividual = _valorPermissao(parametro);
+      final bool indicadorPermissaoIndividual =
+          !ativoEmpresa && ativoIndividual;
+      final String? subtitulo = isPendente
+          ? "Pendente de aprovação"
+          : (ativoEmpresa
+              ? "Ativo para todos os vendedores (parâmetro geral da empresa)"
+              : (indicadorPermissaoIndividual
+                  ? "Ativo por permissão individual"
+                  : null));
+
+      itens.add(
+        Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: SwitchListTile(
+            title: Text(_labelPermissao(parametro.chave)),
+            subtitle: subtitulo != null
+                ? Text(
+                    subtitulo,
+                    style: TextStyle(
+                      color: isPendente ? Colors.orange : Colors.blueGrey,
+                    ),
+                  )
+                : null,
+            secondary: isAtualizada
+                ? const Icon(Icons.check_circle, color: Colors.green)
+                : null,
+            value: _valorPermissao(parametro),
+            onChanged: isPendente
+                ? null
+                : (novoValor) => _alterarPermissao(parametro, novoValor),
+            activeColor: AppTheme.primaryColor,
+          ),
+        ),
+      );
+    }
+
+    return AppBackground(
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: itens,
       ),
     );
   }

@@ -3,7 +3,6 @@ import 'package:emprestimos_app/core/util.dart';
 import 'package:emprestimos_app/core/role.dart';
 import 'package:emprestimos_app/models/emprestimo.dart';
 import 'package:emprestimos_app/models/parametro.dart';
-import 'package:emprestimos_app/models/parametro_vendedor.dart';
 import 'package:emprestimos_app/providers/auth_provider.dart';
 import 'package:emprestimos_app/providers/emprestimo_provider.dart';
 import 'package:emprestimos_app/providers/parametros_provider.dart';
@@ -34,11 +33,11 @@ class _DetalhesClientePageState extends State<DetalhesContasReceber> {
   List<ContasReceberDTO> _emprestimos = [];
   bool isLoading = true;
   final parametrosCliente = <Parametro>[];
-  List parametrosEmpresa = <Parametro>[];
   int _emprestimosEmAberto = 0;
   AuthProvider? _authProvider;
   bool _isVendedor = false;
   bool _podeCadastrarContasReceber = true;
+  bool _podeExcluirCliente = true;
   bool _carregandoPermissaoCadastro = false;
 
   @override
@@ -52,22 +51,17 @@ class _DetalhesClientePageState extends State<DetalhesContasReceber> {
       }
       final provider =
           Provider.of<ContasReceberProvider>(context, listen: false);
-      final parametroProvider =
-          Provider.of<ParametroProvider>(context, listen: false);
 
       await Future.wait([
         _carregarContasReceber(),
         provider.buscarResumoCliente(widget.cliente.id!),
         _carregarParametrosCliente(widget.cliente.id!),
-        parametroProvider.buscarParametrosEmpresa().then((value) {
-          parametrosEmpresa = parametroProvider.parametrosEmpresa;
-        }),
-        _verificarPermissaoCadastroContasReceber(),
+        _carregarPermissoesVendedor(),
       ]);
     });
   }
 
-  Future<void> _verificarPermissaoCadastroContasReceber() async {
+  Future<void> _carregarPermissoesVendedor() async {
     if (_authProvider == null) return;
     await _authProvider!.carregarDadosSalvos();
     if (!mounted) return;
@@ -82,6 +76,7 @@ class _DetalhesClientePageState extends State<DetalhesContasReceber> {
     setState(() {
       _isVendedor = isVendedor;
       _podeCadastrarContasReceber = !isVendedor;
+      _podeExcluirCliente = !isVendedor;
       _carregandoPermissaoCadastro = isVendedor;
     });
 
@@ -90,30 +85,34 @@ class _DetalhesClientePageState extends State<DetalhesContasReceber> {
       setState(() {
         _carregandoPermissaoCadastro = false;
         _podeCadastrarContasReceber = false;
+        _podeExcluirCliente = false;
       });
       return;
     }
 
     final parametroProvider =
         Provider.of<ParametroProvider>(context, listen: false);
+    await parametroProvider.buscarParametrosEmpresa();
+    if (!mounted) return;
     await parametroProvider
         .buscarParametrosVendedor(_authProvider!.loginResponse!.usuario.id);
 
     if (!mounted) return;
 
-    final ParametroVendedor? parametro = parametroProvider.parametrosVendedor
-        .where((p) => p.chave == 'PERMITIR_CADASTRO_CONTAS_RECEBER')
-        .cast<ParametroVendedor?>()
-        .firstWhere((p) => p != null, orElse: () => null);
-
-    final bool permitido = parametro == null
-        ? false
-        : (parametro.valorConvertido is bool
-            ? parametro.valorConvertido as bool
-            : parametro.valor.toLowerCase() == 'true');
+    final bool permitidoCadastroContasReceber =
+        parametroProvider.valorParametroVendedorBool(
+      "PERMITIR_CADASTRO_CONTAS_RECEBER",
+      defaultValue: false,
+    );
+    final bool permitidoExcluirCliente =
+        parametroProvider.possuiPermissaoVendedorComRegraEmpresa(
+      chaveEmpresa: "PERMITIR_EXCLUIR_CLIENTE_EMPRESA",
+      chaveVendedor: "PERMITIR_EXCLUIR_CLIENTE",
+    );
 
     setState(() {
-      _podeCadastrarContasReceber = permitido;
+      _podeCadastrarContasReceber = permitidoCadastroContasReceber;
+      _podeExcluirCliente = permitidoExcluirCliente;
       _carregandoPermissaoCadastro = false;
     });
   }
@@ -124,7 +123,18 @@ class _DetalhesClientePageState extends State<DetalhesContasReceber> {
       dialogType: DialogType.warning,
       title: "Permissão bloqueada",
       message:
-          "O parâmetro não está habilitado para Nova Venda. Consulte o administrador ou solicite liberação na tela XX.",
+          "Você não tem permissão para cadastrar contas a receber. Consulte o administrador para liberação.",
+      btnOkText: "Entendi",
+    ).show();
+  }
+
+  void _mostrarPermissaoExclusaoBloqueada() {
+    MyAwesomeDialog(
+      context: context,
+      dialogType: DialogType.warning,
+      title: "Permissão bloqueada",
+      message:
+          "Você não tem permissão para excluir clientes. Solicite liberação ao administrador.",
       btnOkText: "Entendi",
     ).show();
   }
@@ -341,7 +351,9 @@ class _DetalhesClientePageState extends State<DetalhesContasReceber> {
                   icon: const Icon(Icons.delete_forever,
                       color: Colors.white, size: 28),
                   tooltip: "Excluir cliente",
-                  onPressed: () => _irParaExcluirCliente(cliente),
+                  onPressed: (_isVendedor && !_podeExcluirCliente)
+                      ? _mostrarPermissaoExclusaoBloqueada
+                      : () => _irParaExcluirCliente(cliente),
                 ),
                 IconButton(
                   icon: const Icon(Icons.person_search,

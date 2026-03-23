@@ -106,7 +106,7 @@ class _ClienteListScreenState extends State<ClienteListScreen> {
       dialogType: DialogType.warning,
       title: "Permissão bloqueada",
       message:
-          "Você não tem permissão para cadastrar clientes. Solicite liberação na aba Permissões do seu perfil ou peça ao administrador.",
+          "Você não tem permissão para cadastrar clientes. Solicite liberação ao administrador.",
       btnOkText: "Entendi",
     ).show();
   }
