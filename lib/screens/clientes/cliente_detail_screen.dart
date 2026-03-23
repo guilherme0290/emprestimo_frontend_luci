@@ -359,12 +359,13 @@ class _DetalhesClientePageState extends State<DetalhesContasReceber> {
                   icon: const Icon(Icons.person_search,
                       color: Colors.white, size: 28),
                   onPressed: () async {
-                    final clienteAtualizado = await Navigator.push(
+                    final clienteAtualizado = await Navigator.push<Cliente>(
                       context,
                       MaterialPageRoute(
                         builder: (_) => ClienteFormScreen(cliente: cliente),
                       ),
                     );
+                    if (!mounted || clienteAtualizado == null) return;
                     setState(() {
                       if (clienteAtualizado != null &&
                           clienteAtualizado is Cliente) {

@@ -20,7 +20,57 @@ import 'package:provider/provider.dart';
 import '../../models/cliente.dart';
 import '../../widgets/custom_button.dart';
 import '../../core/theme/theme.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_multi_formatter/flutter_multi_formatter.dart';
+
+class CpfCnpjTextInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final limited = digits.length > 14 ? digits.substring(0, 14) : digits;
+    final formatted = _format(limited);
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+
+  String _format(String digits) {
+    if (digits.length <= 11) {
+      return _formatCpf(digits);
+    }
+    return _formatCnpj(digits);
+  }
+
+  String _formatCpf(String digits) {
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) {
+      return '${digits.substring(0, 3)}.${digits.substring(3)}';
+    }
+    if (digits.length <= 9) {
+      return '${digits.substring(0, 3)}.${digits.substring(3, 6)}.${digits.substring(6)}';
+    }
+    return '${digits.substring(0, 3)}.${digits.substring(3, 6)}.${digits.substring(6, 9)}-${digits.substring(9)}';
+  }
+
+  String _formatCnpj(String digits) {
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 5) {
+      return '${digits.substring(0, 2)}.${digits.substring(2)}';
+    }
+    if (digits.length <= 8) {
+      return '${digits.substring(0, 2)}.${digits.substring(2, 5)}.${digits.substring(5)}';
+    }
+    if (digits.length <= 12) {
+      return '${digits.substring(0, 2)}.${digits.substring(2, 5)}.${digits.substring(5, 8)}/${digits.substring(8)}';
+    }
+    return '${digits.substring(0, 2)}.${digits.substring(2, 5)}.${digits.substring(5, 8)}/${digits.substring(8, 12)}-${digits.substring(12)}';
+  }
+}
 
 class ClienteFormScreen extends StatefulWidget {
   Cliente? cliente;
@@ -54,10 +104,7 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
   final TextEditingController valorMultaDiariaController =
       TextEditingController();
 
-  final cpfFormatter = MaskTextInputFormatter(
-    mask: '###.###.###-##',
-    filter: {"#": RegExp(r'[0-9]')},
-  );
+  final cpfCnpjFormatter = CpfCnpjTextInputFormatter();
 
 // 🔹 Máscara para CEP (00000-000)
   final cepFormatter = MaskTextInputFormatter(
@@ -446,14 +493,13 @@ class _ClienteFormScreenState extends State<ClienteFormScreen> {
                   const SizedBox(height: 10),
                   InputCustomizado(
                     controller: cpfController,
-                    labelText: "CPF",
+                    labelText: "CPF/CNPJ",
                     type: TextInputType.number,
                     leadingIcon: const Icon(Icons.credit_card,
                         color: AppTheme.primaryColor),
-                    inputFormatters: [cpfFormatter],
-                    validator: (value) => cpfController.text.isNotEmpty
-                        ? Util.isCpfCnpjValid(cpfController.text)
-                        : null,
+                    inputFormatters: [cpfCnpjFormatter],
+                    validator: (value) =>
+                        Util.isCpfCnpjOpcionalValid(cpfController.text),
                   ),
                   const SizedBox(height: 10),
                   InputCustomizado(

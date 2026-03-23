@@ -1,5 +1,6 @@
 import 'package:cpf_cnpj_validator/cnpj_validator.dart';
 import 'package:cpf_cnpj_validator/cpf_validator.dart';
+import 'package:cpf_cnpj_validator/cnpj_validator.dart';
 import 'package:emprestimos_app/models/parametro.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -96,6 +97,24 @@ class Util {
     }
 
     return null;
+  }
+
+  static String? isCpfCnpjOpcionalValid(String documento) {
+    final docLimpo = removerMascara(documento);
+
+    if (docLimpo.isEmpty) {
+      return null;
+    }
+
+    if (docLimpo.length == 11) {
+      return CPFValidator.isValid(docLimpo) ? null : 'CPF inválido';
+    }
+
+    if (docLimpo.length == 14) {
+      return CNPJValidator.isValid(docLimpo) ? null : 'CNPJ inválido';
+    }
+
+    return 'Informe um CPF ou CNPJ válido';
   }
 
   static String? isEmailValid(String email) {
