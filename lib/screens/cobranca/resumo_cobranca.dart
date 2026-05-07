@@ -71,6 +71,7 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
           children: [
             DropdownButtonFormField<String>(
               value: situacaoSelecionada,
+              isExpanded: true,
               items: situacoes
                   .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                   .toList(),
@@ -106,10 +107,14 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
             if (!isVendedor && caixas.isNotEmpty)
               DropdownButtonFormField<String>(
                 value: caixaValue,
+                isExpanded: true,
                 items: caixas
                     .map((caixa) => DropdownMenuItem(
                           value: caixa.descricao,
-                          child: Text(caixa.descricao),
+                          child: Text(
+                            caixa.descricao,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ))
                     .toList(),
                 onChanged: (val) => setState(() => caixaSelecionado = val),
@@ -121,10 +126,14 @@ class _ResumoCobrancasScreenState extends State<ResumoCobrancasScreen> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: vendedorValue,
+                isExpanded: true,
                 items: vendedores
                     .map((v) => DropdownMenuItem(
                           value: v.nome,
-                          child: Text(v.nome),
+                          child: Text(
+                            v.nome,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ))
                     .toList(),
                 onChanged: (val) => setState(() => vendedorSelecionado = val),

@@ -32,6 +32,7 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
   String? _erroCliente;
 
   Cliente? _clienteSelecionado;
+  bool get _isRecorrente => widget.emprestimoDraft.tipoContrato == "RECORRENTE";
   @override
   void initState() {
     super.initState();
@@ -52,10 +53,16 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
   }
 
   void _simularParcelas() {
+    if (widget.emprestimoDraft.tipoContrato == "RECORRENTE") {
+      _simularParcelasRecorrentes();
+      return;
+    }
+
     final valor = widget.emprestimoDraft.valor;
     final juros = widget.emprestimoDraft.juros;
     final tipoRaw = widget.emprestimoDraft.tipoPagamento;
     final n = widget.emprestimoDraft.numeroParcelas;
+    final politicaDiaNaoUtil = widget.emprestimoDraft.politicaDiaNaoUtil;
 
     final dataContrato = widget.emprestimoDraft.dataContrato ?? DateTime.now();
     final dataPrimeiroVencimento =
@@ -78,8 +85,9 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
     final temp = <ParcelaSimulada>[];
 
     for (int i = 1; i <= n; i++) {
-      final dataVencimento =
+      final dataBase =
           _calcularDataVencimento(i, primeiroVencimento, tipo);
+      final dataVencimento = _ajustarDiaNaoUtil(dataBase, politicaDiaNaoUtil);
 
       temp.add(
         ParcelaSimulada(
@@ -94,6 +102,71 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
       _parcelasSimuladas = temp;
       _jurosCalculado = juros;
     });
+  }
+
+  void _simularParcelasRecorrentes() {
+    final tipo = widget.emprestimoDraft.tipoPagamento;
+    final recorrencia = widget.emprestimoDraft.cobrancaRecorrente;
+    final valor = recorrencia?.valorBase ?? widget.emprestimoDraft.valor;
+    final inicio = recorrencia?.dataInicio ??
+        widget.emprestimoDraft.dataContrato ??
+        DateTime.now();
+    final diaVencimento = recorrencia?.diaVencimento ?? inicio.day;
+    final politicaVencimento = recorrencia?.politicaVencimento ?? "MANTER_DIA";
+    final politicaDiaNaoUtil = recorrencia?.politicaDiaNaoUtil ?? "POSTERGAR";
+    final temp = <ParcelaSimulada>[];
+
+    DateTime calcular(int i) {
+      if (tipo == "MENSAL") {
+        final base = DateTime(inicio.year, inicio.month + i + 1, 1);
+        final ultimo = DateTime(base.year, base.month + 1, 0).day;
+        final dia = politicaVencimento == "ULTIMO_DIA_MES"
+            ? ultimo
+            : (diaVencimento > ultimo ? ultimo : diaVencimento);
+        return DateTime(base.year, base.month, dia);
+      }
+      if (tipo == "SEMANAL") return inicio.add(Duration(days: 7 * (i + 1)));
+      if (tipo == "QUINZENAL") return inicio.add(Duration(days: 15 * (i + 1)));
+      return inicio.add(Duration(days: i + 1));
+    }
+
+    for (int i = 0; i < 1; i++) {
+      final dataBase = calcular(i);
+      final dataAjustada = _ajustarDiaNaoUtil(dataBase, politicaDiaNaoUtil);
+      temp.add(ParcelaSimulada(
+        numero: i + 1,
+        valor: valor,
+        dataVencimento: dataAjustada,
+      ));
+    }
+
+    _parcelaController = TextEditingController(text: Util.formatarMoeda(valor));
+    setState(() {
+      _parcelasSimuladas = temp;
+      _jurosCalculado = 0.0;
+    });
+  }
+
+  DateTime _ajustarDiaNaoUtil(DateTime data, String politica) {
+    if (politica == "IGNORAR") return data;
+
+    DateTime atual = data;
+    bool fimDeSemana(DateTime d) =>
+        d.weekday == DateTime.saturday || d.weekday == DateTime.sunday;
+
+    if (!fimDeSemana(atual)) return atual;
+
+    if (politica == "ANTECIPAR") {
+      while (fimDeSemana(atual)) {
+        atual = atual.subtract(const Duration(days: 1));
+      }
+      return atual;
+    }
+
+    while (fimDeSemana(atual)) {
+      atual = atual.add(const Duration(days: 1));
+    }
+    return atual;
   }
 
   DateTime _calcularPrimeiroVencimento(DateTime dataContrato, String tipo) {
@@ -182,7 +255,7 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Pré-visualização da venda"),
+        title: const Text("Pré-visualização das Contas a Receber"),
         backgroundColor: AppTheme.primaryColor,
       ),
       body: Padding(
@@ -226,8 +299,10 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
                   emprestimo: draft,
                 ),
                 const SizedBox(height: 16),
-                _buildAjusteParcelas(),
-                _buildListaParcelas(),
+                _isRecorrente
+                    ? _buildProximaCobranca()
+                    : _buildAjusteParcelas(),
+                if (!_isRecorrente) _buildListaParcelas(),
                 const SizedBox(height: 16),
                 _buildBotoes(),
               ],
@@ -262,8 +337,12 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
                   if (_mostrarJuros)
                     _buildInfoItem(Icons.percent, "Juros",
                         "${_jurosCalculado.toStringAsFixed(2)}%"),
-                  _buildInfoItem(Icons.calendar_today, "Parcelas",
-                      "${draft.numeroParcelas}x"),
+                  _buildInfoItem(
+                      Icons.calendar_today,
+                      "Parcelas",
+                      _isRecorrente
+                          ? "Recorrente"
+                          : "${draft.numeroParcelas}x"),
                   // _buildInfoItem(Icons.attach_money, "Parcela",
                   //     Util.formatarMoeda((_parcelasSimuladas.first.valor))),
                 ]),
@@ -316,6 +395,33 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
           border: OutlineInputBorder(),
         ),
         onChanged: (value) => _recalcularJuros(),
+      ),
+    );
+  }
+
+  Widget _buildProximaCobranca() {
+    final parc =
+        _parcelasSimuladas.isNotEmpty ? _parcelasSimuladas.first : null;
+    if (parc == null) return const SizedBox.shrink();
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 3,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: const CircleAvatar(
+          backgroundColor: AppTheme.secondaryColor,
+          child: Icon(Icons.event, color: Colors.white, size: 18),
+        ),
+        title: Text(
+          "Próxima cobrança: ${Util.formatarMoeda(parc.valor)}",
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          "Vencimento: ${FormatData.formatarDataCompleta(parc.dataVencimento.toString())}\nAs próximas cobranças serão geradas automaticamente.",
+          style: const TextStyle(color: Colors.grey),
+        ),
+        isThreeLine: true,
       ),
     );
   }
@@ -432,7 +538,7 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
         qtdContasReceberAtivos!.contasreceber > limiteQtdContasReceber) {
       setState(() {
         _erroCliente =
-            "Número de empréstimos em aberto excede o permitido (${limiteQtdContasReceber}).";
+            "Número de contas a receber em aberto excede o permitido (${limiteQtdContasReceber}).";
       });
       return;
     }
@@ -527,7 +633,10 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
 
     widget.emprestimoDraft.juros = _jurosCalculado;
     widget.emprestimoDraft.cliente = _clienteSelecionado;
-    widget.emprestimoDraft.parcelas = _parcelasSimuladas;
+    widget.emprestimoDraft.parcelas =
+        widget.emprestimoDraft.tipoContrato == "RECORRENTE"
+            ? null
+            : _parcelasSimuladas;
 
     final novoContasReceber =
         await emprestimoProvider.criarContasReceber(widget.emprestimoDraft);
@@ -537,13 +646,13 @@ class _ContasReceberCreateStep2State extends State<ContasReceberCreateStep2> {
     if (novoContasReceber == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text("Erro ao criar empréstimo"),
+            content: Text("Erro ao criar conta a receber"),
             backgroundColor: Colors.red),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text("Empréstimo criado com sucesso!"),
+            content: Text("Conta a receber criada com sucesso!"),
             backgroundColor: Colors.green),
       );
       await Future.delayed(const Duration(milliseconds: 300));

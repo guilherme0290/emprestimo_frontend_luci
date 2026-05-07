@@ -91,18 +91,22 @@ class _ContasReceberCreateStep1State extends State<ContasReceberCreateStep1> {
                     isSimulation: isSimulation,
                     vendedores: vendedores,
                     caixas: caixas,
-                    onSubmit: (valor,
+                    onSubmit: (tipoContrato,
+                        valor,
                         juros,
                         parcelas,
                         tipoPagamento,
+                        cobrancaRecorrente,
                         penhora,
                         vendedor,
                         caixa,
                         dataContrato,
                         dataPrimeiroVencimento,
                         vencimentoFixo,
+                        politicaDiaNaoUtil,
                         descricao) {
                       final dto = NovoContasReceberDTO(
+                          tipoContrato: tipoContrato,
                           valor: valor,
                           juros: juros,
                           numeroParcelas: parcelas,
@@ -114,7 +118,9 @@ class _ContasReceberCreateStep1State extends State<ContasReceberCreateStep1> {
                           dataContrato: dataContrato,
                           dataPrimeiroVencimento: dataPrimeiroVencimento,
                           vencimentoFixo: vencimentoFixo,
-                          descricao: descricao);
+                          politicaDiaNaoUtil: politicaDiaNaoUtil,
+                          descricao: descricao,
+                          cobrancaRecorrente: cobrancaRecorrente);
 
                       Navigator.push(
                         context,

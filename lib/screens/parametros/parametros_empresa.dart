@@ -443,7 +443,7 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
                     InputCustomizado(
                       controller:
                           limiteContasReceberEmAbertoPorClienteController,
-                      labelText: "Limite de Venda em Aberto por Cliente",
+                      labelText: "Limite de Contas a Receber em Aberto por Cliente",
                       type: TextInputType.number,
                       leadingIcon:
                           const Icon(Icons.money, color: AppTheme.primaryColor),
@@ -466,6 +466,7 @@ class _ParametrosEmpresaScreenState extends State<ParametrosEmpresaScreen> {
                                 jurosAtrasoTipo == "VALOR_FIXO")
                             ? jurosAtrasoTipo
                             : "PERCENTUAL",
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: "Tipo de juros por atraso",
                           border: OutlineInputBorder(),

@@ -67,7 +67,7 @@ class _TrocarVendedorScreenState extends State<TrocarVendedorScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Transferir Vendas "),
+        title: const Text("Transferir Contas a Receber "),
       ),
       body: AppBackground(
         child: Padding(
@@ -76,7 +76,7 @@ class _TrocarVendedorScreenState extends State<TrocarVendedorScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                "Selecione o novo vendedor para receber as vendas e/ou clientes:",
+                "Selecione o novo vendedor para receber as contas a receber e/ou clientes:",
                 style: TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 20),
@@ -91,7 +91,10 @@ class _TrocarVendedorScreenState extends State<TrocarVendedorScreen> {
                     .where((c) => c.id != widget.vendedorDesligadoId)
                     .map((c) => DropdownMenuItem(
                           value: c.id,
-                          child: Text(c.nome),
+                          child: Text(
+                            c.nome,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ))
                     .toList(),
                 onChanged: (novoId) {

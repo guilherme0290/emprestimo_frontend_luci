@@ -7,6 +7,7 @@ class ContasReceberDTO {
   final int id;
   final double valor;
   final double juros;
+  final String tipoContrato;
   final String tipoPagamento;
   final String dataPrimeiroVencimento;
   final String dataUltimoVencimento;
@@ -19,11 +20,13 @@ class ContasReceberDTO {
   final List<ParcelaDTO> parcelas;
   final String dataContrato;
   final String? descricao;
+  final CobrancaRecorrenteInfo? cobrancaRecorrente;
 
   ContasReceberDTO(
       {required this.id,
       required this.valor,
       required this.juros,
+      required this.tipoContrato,
       required this.tipoPagamento,
       required this.dataPrimeiroVencimento,
       required this.dataUltimoVencimento,
@@ -35,7 +38,8 @@ class ContasReceberDTO {
       required this.parcelas,
       this.penhora,
       required this.dataContrato,
-      this.descricao});
+      this.descricao,
+      this.cobrancaRecorrente});
 
   factory ContasReceberDTO.fromJson(Map<String, dynamic> json) {
     final clienteJson = json['cliente'] as Map<String, dynamic>;
@@ -43,6 +47,7 @@ class ContasReceberDTO {
       id: json['id'] as int,
       valor: (json['valor'] as num).toDouble(),
       juros: (json['juros'] as num).toDouble(),
+      tipoContrato: (json['tipoContrato'] ?? 'PARCELADO').toString(),
       tipoPagamento: json['tipoPagamento'] as String,
       dataPrimeiroVencimento: json['dataPrimeiroVencimento'] ?? '',
       dataUltimoVencimento: json['dataUltimoVencimento'] ?? '',
@@ -60,6 +65,10 @@ class ContasReceberDTO {
           : null,
       dataContrato: FormatData.formatarData(json['dataContrato']),
       descricao: json['descricao'] as String?,
+      cobrancaRecorrente: json['cobrancaRecorrente'] is Map<String, dynamic>
+          ? CobrancaRecorrenteInfo.fromJson(
+              json['cobrancaRecorrente'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -69,6 +78,7 @@ class ContasReceberDTO {
         id: id,
         valor: valor,
         juros: juros,
+        tipoContrato: tipoContrato,
         tipoPagamento: tipoPagamento,
         dataPrimeiroVencimento: dataPrimeiroVencimento,
         dataUltimoVencimento: dataUltimoVencimento,
@@ -80,6 +90,48 @@ class ContasReceberDTO {
         parcelas: parcelas ?? this.parcelas,
         penhora: penhora,
         dataContrato: dataContrato,
-        descricao: descricao);
+        descricao: descricao,
+        cobrancaRecorrente: cobrancaRecorrente);
+  }
+}
+
+class CobrancaRecorrenteInfo {
+  final String periodicidade;
+  final int? intervalo;
+  final double? valorBase;
+  final String? dataInicio;
+  final int? diaVencimento;
+  final String? tipoTermino;
+  final String? dataFim;
+  final int? quantidadeCiclos;
+  final String? politicaVencimento;
+  final String? politicaDiaNaoUtil;
+
+  CobrancaRecorrenteInfo({
+    required this.periodicidade,
+    this.intervalo,
+    this.valorBase,
+    this.dataInicio,
+    this.diaVencimento,
+    this.tipoTermino,
+    this.dataFim,
+    this.quantidadeCiclos,
+    this.politicaVencimento,
+    this.politicaDiaNaoUtil,
+  });
+
+  factory CobrancaRecorrenteInfo.fromJson(Map<String, dynamic> json) {
+    return CobrancaRecorrenteInfo(
+      periodicidade: (json['periodicidade'] ?? 'MENSAL').toString(),
+      intervalo: json['intervalo'] as int?,
+      valorBase: (json['valorBase'] as num?)?.toDouble(),
+      dataInicio: json['dataInicio']?.toString(),
+      diaVencimento: json['diaVencimento'] as int?,
+      tipoTermino: json['tipoTermino']?.toString(),
+      dataFim: json['dataFim']?.toString(),
+      quantidadeCiclos: json['quantidadeCiclos'] as int?,
+      politicaVencimento: json['politicaVencimento']?.toString(),
+      politicaDiaNaoUtil: json['politicaDiaNaoUtil']?.toString(),
+    );
   }
 }

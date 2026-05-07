@@ -139,8 +139,14 @@ class _TransacoesResumoCardState extends State<TransacoesResumoCard>
                           .contains(filtroPeriodo)
                       ? filtroPeriodo
                       : null,
+                  isExpanded: true,
                   items: ['Hoje', 'Ontem', '7 dias', '15 dias', '30 dias']
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .map((e) => DropdownMenuItem(
+                          value: e,
+                          child: Text(
+                            e,
+                            overflow: TextOverflow.ellipsis,
+                          )))
                       .toList(),
                   hint: const Text("Período"),
                   onChanged: (val) async {
@@ -163,9 +169,11 @@ class _TransacoesResumoCardState extends State<TransacoesResumoCard>
                       isExpanded: true,
                       items: vendedores
                           .map((e) => DropdownMenuItem(
-                                value: e.id.toString(),
-                                child: Text(e.nome),
-                              ))
+                              value: e.id.toString(),
+                              child: Text(
+                                e.nome,
+                                overflow: TextOverflow.ellipsis,
+                              )))
                           .toList(),
                       onChanged: (val) async {
                         setState(() => cobradorSelecionado = val);
@@ -213,9 +221,11 @@ class _TransacoesResumoCardState extends State<TransacoesResumoCard>
                       isExpanded: true,
                       items: caixas
                           .map((e) => DropdownMenuItem(
-                                value: e.id.toString(),
-                                child: Text(e.descricao),
-                              ))
+                              value: e.id.toString(),
+                              child: Text(
+                                e.descricao,
+                                overflow: TextOverflow.ellipsis,
+                              )))
                           .toList(),
                       onChanged: (val) async {
                         setState(() => caixaSelecionado = val);

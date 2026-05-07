@@ -187,10 +187,10 @@ class _EscolherPlanoScreenState extends State<EscolherPlanoScreen> {
                         title: const Text("Como funcionam as notificações?"),
                         content: const Text(
                           "Com essa funcionalidade, sua empresa poderá enviar mensagens automáticas personalizadas para seus clientes nos seguintes casos:\n\n"
-                          "- Nova venda realizado\n"
+                          "- Nova conta a receber lançada\n"
                           "- Parcelas prestes a vencer\n"
                           "- Parcelas vencidas\n"
-                          "- Vendas quitadas\n\n"
+                          "- Contas a receber quitadas\n\n"
                           "Essa opção está inclusa nos planos com '+ WhatsApp'.",
                         ),
                         actions: [

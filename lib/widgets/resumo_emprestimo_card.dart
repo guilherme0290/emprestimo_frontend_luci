@@ -29,7 +29,7 @@ class ResumoContasReceberCard extends StatelessWidget {
         child: Column(
           children: [
             const Text(
-              "Resumo das Vendas",
+              "Resumo das Contas a Receber",
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -38,7 +38,7 @@ class ResumoContasReceberCard extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _buildInfoRow([
-              _buildInfoItem(Icons.monetization_on, "Total Emprestado",
+              _buildInfoItem(Icons.monetization_on, "Total em Contas a Receber",
                   Util.formatarMoeda(soma)),
               _buildInfoItem(
                   Icons.trending_up, "Lucro Gerado", Util.formatarMoeda(2000)),

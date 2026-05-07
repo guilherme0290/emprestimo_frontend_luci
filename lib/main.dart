@@ -1,4 +1,5 @@
 import 'package:emprestimos_app/core/theme/theme.dart';
+import 'package:emprestimos_app/core/api.dart';
 import 'package:emprestimos_app/firebase_options.dart';
 import 'package:emprestimos_app/providers/caixa_provider.dart';
 import 'package:emprestimos_app/providers/cidade_provider.dart';

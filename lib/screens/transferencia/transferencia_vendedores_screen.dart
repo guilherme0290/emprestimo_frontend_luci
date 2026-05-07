@@ -174,6 +174,7 @@ class _TransferenciaVendedoresScreenState
                                   : (constraints.maxWidth - 12) / 2,
                               child: DropdownButtonFormField<int?>(
                                 value: _vendedorFiltroId,
+                                isExpanded: true,
                                 items: [
                                   const DropdownMenuItem<int?>(
                                     value: null,
@@ -182,7 +183,10 @@ class _TransferenciaVendedoresScreenState
                                   ...vendedores.map(
                                     (v) => DropdownMenuItem<int?>(
                                       value: v.id,
-                                      child: Text(v.nome),
+                                      child: Text(
+                                        v.nome,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -202,6 +206,7 @@ class _TransferenciaVendedoresScreenState
                                   : (constraints.maxWidth - 12) / 2,
                               child: DropdownButtonFormField<int?>(
                                 value: _vendedorDestinoId,
+                                isExpanded: true,
                                 items: [
                                   const DropdownMenuItem<int?>(
                                     value: null,
@@ -210,7 +215,10 @@ class _TransferenciaVendedoresScreenState
                                   ...vendedores.map(
                                     (v) => DropdownMenuItem<int?>(
                                       value: v.id,
-                                      child: Text(v.nome),
+                                      child: Text(
+                                        v.nome,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ),
                                 ],

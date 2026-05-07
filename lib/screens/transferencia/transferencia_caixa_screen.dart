@@ -186,6 +186,7 @@ class _TransferenciaCaixaScreenState extends State<TransferenciaCaixaScreen> {
                               width: fieldWidth(3, 12),
                               child: DropdownButtonFormField<int?>(
                                 value: _vendedorFiltroId,
+                                isExpanded: true,
                                 items: [
                                   const DropdownMenuItem<int?>(
                                     value: null,
@@ -194,7 +195,10 @@ class _TransferenciaCaixaScreenState extends State<TransferenciaCaixaScreen> {
                                   ...vendedores.map(
                                     (v) => DropdownMenuItem<int?>(
                                       value: v.id,
-                                      child: Text(v.nome),
+                                      child: Text(
+                                        v.nome,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -212,6 +216,7 @@ class _TransferenciaCaixaScreenState extends State<TransferenciaCaixaScreen> {
                               width: fieldWidth(3, 12),
                               child: DropdownButtonFormField<int?>(
                                 value: _caixaFiltroId,
+                                isExpanded: true,
                                 items: [
                                   const DropdownMenuItem<int?>(
                                     value: null,
@@ -220,7 +225,10 @@ class _TransferenciaCaixaScreenState extends State<TransferenciaCaixaScreen> {
                                   ...caixas.map(
                                     (Caixa c) => DropdownMenuItem<int?>(
                                       value: c.id,
-                                      child: Text(c.descricao),
+                                      child: Text(
+                                        c.descricao,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -238,6 +246,7 @@ class _TransferenciaCaixaScreenState extends State<TransferenciaCaixaScreen> {
                               width: fieldWidth(3, 12),
                               child: DropdownButtonFormField<int?>(
                                 value: _caixaDestinoId,
+                                isExpanded: true,
                                 items: [
                                   const DropdownMenuItem<int?>(
                                     value: null,
@@ -246,7 +255,10 @@ class _TransferenciaCaixaScreenState extends State<TransferenciaCaixaScreen> {
                                   ...caixas.map(
                                     (Caixa c) => DropdownMenuItem<int?>(
                                       value: c.id,
-                                      child: Text(c.descricao),
+                                      child: Text(
+                                        c.descricao,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ),
                                 ],

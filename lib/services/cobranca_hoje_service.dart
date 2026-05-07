@@ -11,13 +11,15 @@ class CobrancaHojeService {
 
   static Future<List<DetalheParcelaDTO>> buscar({
     required DateTime vencimento,
+    bool incluirAtrasadas = false,
     int? vendedorId,
     int? caixaId,
   }) async {
     try {
       final params = <String, dynamic>{
         'status': 'PENDENTE',
-        'dataInicio': _formatDate(vencimento),
+        'dataInicio':
+            incluirAtrasadas ? '2000-01-01' : _formatDate(vencimento),
         'dataFim': _formatDate(vencimento),
         'vencimentoOuPagamento': 'vencimento',
       };
@@ -43,7 +45,8 @@ class CobrancaHojeService {
           .map((e) => DetalheParcelaDTO.fromJson(e as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
-      throw Exception(e.response?.data["message"] ?? "Erro ao buscar cobranças");
+      throw Exception(
+          e.response?.data["message"] ?? "Erro ao buscar cobranças");
     }
   }
 }

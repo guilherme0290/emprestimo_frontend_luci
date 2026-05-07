@@ -3,11 +3,13 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:emprestimos_app/core/navigation_service.dart';
 import 'package:emprestimos_app/core/storage_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 
 class Api {
   static String urlProducao = "https://app.souzacomerciobr.com.br/api";
   static String urlHomologacao = "http://192.168.100.118:8080/api";
+  static String urlAtual = urlProducao;
 
   static bool _interceptorAdicionado = false;
   static Future<bool>? _refreshingFuture;
@@ -18,6 +20,24 @@ class Api {
       receiveTimeout: const Duration(seconds: 1000),
     ),
   );
+
+  static String _normalizarUrl(String url) {
+    return url.trim().replaceAll(RegExp(r'/+$'), '').toLowerCase();
+  }
+
+  static void validarReleaseEmProducao() {
+    if (!kReleaseMode) return;
+
+    final baseUrlAtual = _normalizarUrl(_dio.options.baseUrl);
+    final baseUrlProducao = _normalizarUrl(urlProducao);
+
+    if (baseUrlAtual != baseUrlProducao) {
+      throw StateError(
+        "Build de release bloqueada: baseUrl atual (${_dio.options.baseUrl}) "
+        "diferente da produção ($urlProducao).",
+      );
+    }
+  }
 
   static Future<void> setAuthToken(String token) async {
     _dio.options.headers["Authorization"] = token;
@@ -135,10 +155,21 @@ class Api {
             await _handleUnauthorized();
           }
 
-          try {
-            print("❌ Erro na requisição: ${e.message}");
-          } catch (err) {
-            print("❌ Erro na requisição (não pôde acessar e.message): $err");
+          final method = e.requestOptions.method;
+          final fullUrl = "${e.requestOptions.baseUrl}${e.requestOptions.path}";
+          print("❌ Erro na requisição [$method $fullUrl]");
+          print("🧩 Tipo do erro: ${e.type}");
+          print("💬 Mensagem: ${e.message}");
+          print("🛠️ Erro interno: ${e.error}");
+          if (e.requestOptions.queryParameters.isNotEmpty) {
+            print("❓ QueryParams: ${e.requestOptions.queryParameters}");
+          }
+          if (e.response != null) {
+            print("📉 Status: ${e.response?.statusCode}");
+            print("📨 Response headers: ${e.response?.headers.map}");
+            print("📦 Response data: ${e.response?.data}");
+          } else {
+            print("📉 Status: sem resposta do servidor");
           }
           return handler.next(e);
         },

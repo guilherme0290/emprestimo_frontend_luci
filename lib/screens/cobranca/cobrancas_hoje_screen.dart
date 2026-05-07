@@ -20,6 +20,7 @@ class CobrancasHojeScreen extends StatefulWidget {
 }
 
 class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
+  bool incluirAtrasadas = false;
   DateTime vencimento = DateTime.now();
   int? caixaIdSelecionado;
   int? vendedorIdSelecionado;
@@ -77,6 +78,7 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
     try {
       final data = await CobrancaHojeService.buscar(
         vencimento: vencimento,
+        incluirAtrasadas: incluirAtrasadas,
         vendedorId: vendedorIdSelecionado,
         caixaId: caixaIdSelecionado,
       );
@@ -94,6 +96,7 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
       _atualizarTextoVencimento();
       caixaIdSelecionado = null;
       if (!_isVendedor) vendedorIdSelecionado = null;
+      incluirAtrasadas = false;
       resultados = [];
       errorMessage = null;
     });
@@ -126,14 +129,20 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildDateField(),
+              const SizedBox(height: 8),
+              _buildTipoFiltroCobranca(),
               const SizedBox(height: 12),
               if (!_isVendedor && caixas.isNotEmpty)
                 DropdownButtonFormField<int>(
                   initialValue: caixaValue,
+                  isExpanded: true,
                   items: caixas
                       .map((caixa) => DropdownMenuItem<int>(
                             value: caixa.id,
-                            child: Text(caixa.descricao),
+                            child: Text(
+                              caixa.descricao,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ))
                       .toList(),
                   onChanged: (val) => setState(() => caixaIdSelecionado = val),
@@ -146,10 +155,14 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
               if (vendedores.isNotEmpty)
                 DropdownButtonFormField<int>(
                   initialValue: vendedorValue,
+                  isExpanded: true,
                   items: vendedores
                       .map((v) => DropdownMenuItem<int>(
                             value: v.id,
-                            child: Text(v.nome),
+                            child: Text(
+                              v.nome,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ))
                       .toList(),
                   onChanged: _isVendedor
@@ -218,6 +231,32 @@ class _CobrancasHojeScreenState extends State<CobrancasHojeScreen> {
           });
         }
       },
+    );
+  }
+
+  Widget _buildTipoFiltroCobranca() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Filtrar parcelas',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        RadioListTile<bool>(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Somente vencendo no dia'),
+          value: false,
+          groupValue: incluirAtrasadas,
+          onChanged: (v) => setState(() => incluirAtrasadas = v ?? false),
+        ),
+        RadioListTile<bool>(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Incluir atrasadas também'),
+          value: true,
+          groupValue: incluirAtrasadas,
+          onChanged: (v) => setState(() => incluirAtrasadas = v ?? false),
+        ),
+      ],
     );
   }
 

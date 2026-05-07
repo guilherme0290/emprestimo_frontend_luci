@@ -195,6 +195,127 @@ class ContasReceberProvider with ChangeNotifier {
     }
   }
 
+  Future<ContasReceberDTO?> atualizarRegraRecorrencia({
+    required int contasReceberId,
+    required String escopo,
+    required Map<String, dynamic> payload,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await Api.loadAuthToken();
+      final response = await Api.dio.patch(
+        "/contasreceber/$contasReceberId/regra-recorrencia",
+        queryParameters: {"escopo": escopo},
+        data: payload,
+      );
+
+      final data = response.data;
+      Map<String, dynamic> contratoJson;
+      if (data is Map<String, dynamic> &&
+          data["data"] is Map<String, dynamic>) {
+        contratoJson = data["data"] as Map<String, dynamic>;
+      } else if (data is Map<String, dynamic>) {
+        contratoJson = data;
+      } else {
+        _errorMessage = "Resposta inválida ao atualizar recorrência.";
+        return null;
+      }
+
+      final atualizado = ContasReceberDTO.fromJson(contratoJson);
+      return atualizado;
+    } on DioException catch (e) {
+      _errorMessage = DioErrorHandler.handleDioException(e);
+      return null;
+    } catch (e) {
+      _errorMessage = "Erro ao atualizar regra de recorrência.";
+      return null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<ContasReceberDTO?> atualizarParcelaAvulsa({
+    required int contasReceberId,
+    required int parcelaId,
+    required Map<String, dynamic> payload,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await Api.loadAuthToken();
+      final response = await Api.dio.patch(
+        "/contasreceber/$contasReceberId/parcelas/$parcelaId",
+        data: payload,
+      );
+
+      final data = response.data;
+      Map<String, dynamic> contratoJson;
+      if (data is Map<String, dynamic> &&
+          data["data"] is Map<String, dynamic>) {
+        contratoJson = data["data"] as Map<String, dynamic>;
+      } else if (data is Map<String, dynamic>) {
+        contratoJson = data;
+      } else {
+        _errorMessage = "Resposta inválida ao atualizar parcela.";
+        return null;
+      }
+
+      return ContasReceberDTO.fromJson(contratoJson);
+    } on DioException catch (e) {
+      _errorMessage = DioErrorHandler.handleDioException(e);
+      return null;
+    } catch (e) {
+      _errorMessage = "Erro ao atualizar parcela.";
+      return null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<ContasReceberDTO?> atualizarParcelasContrato({
+    required int contasReceberId,
+    required String escopo,
+    required Map<String, dynamic> payload,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await Api.loadAuthToken();
+      final response = await Api.dio.patch(
+        "/contasreceber/$contasReceberId/parcelas",
+        queryParameters: {"escopo": escopo},
+        data: payload,
+      );
+      final data = response.data;
+      Map<String, dynamic> contratoJson;
+      if (data is Map<String, dynamic> &&
+          data["data"] is Map<String, dynamic>) {
+        contratoJson = data["data"] as Map<String, dynamic>;
+      } else if (data is Map<String, dynamic>) {
+        contratoJson = data;
+      } else {
+        _errorMessage = "Resposta inválida ao atualizar contrato.";
+        return null;
+      }
+      return ContasReceberDTO.fromJson(contratoJson);
+    } on DioException catch (e) {
+      _errorMessage = DioErrorHandler.handleDioException(e);
+      return null;
+    } catch (e) {
+      _errorMessage = "Erro ao atualizar contrato.";
+      return null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   List<ParcelaDTO> get cobrancasPendentes {
     return _emprestimos
         .expand((emprestimo) => emprestimo.parcelas)
@@ -271,7 +392,7 @@ class ContasReceberProvider with ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      _errorMessage = "Erro inesperado ao buscar contas a receber: $e";
+      _errorMessage = "Erro inesperado ao buscar conta a receber: $e";
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -549,7 +670,7 @@ class ContasReceberProvider with ChangeNotifier {
     } on DioException catch (dioErr) {
       _errorMessage = DioErrorHandler.handleDioException(dioErr);
     } catch (e) {
-      _errorMessage = "Erro inesperado ao quitar a venda com garantia: $e";
+      _errorMessage = "Erro inesperado ao quitar conta a receber com penhora: $e";
     } finally {
       _isLoading = false;
       notifyListeners();

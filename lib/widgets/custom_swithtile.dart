@@ -20,30 +20,28 @@ class CustomSwitchTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SwitchListTile(
-      title: Row(
-        children: [
-          if (icon != null) ...[
-            Icon(icon, color: AppTheme.primaryColor),
-            const SizedBox(width: 8),
-          ],
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: AppTheme.textColor,
-            ),
-          ),
-        ],
+      secondary: icon != null ? Icon(icon, color: AppTheme.primaryColor) : null,
+      title: Text(
+        title,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: AppTheme.textColor,
+        ),
       ),
       subtitle: subtitle != null
           ? Text(
               subtitle!,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 14, color: Colors.grey),
             )
           : null,
       value: value,
       onChanged: onChanged,
+      dense: true,
       activeColor: AppTheme.primaryColor, // Cor do switch ativado
       inactiveTrackColor: AppTheme.neutralColor, // Cor do fundo desativado
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

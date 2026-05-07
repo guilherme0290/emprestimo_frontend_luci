@@ -98,7 +98,7 @@ class VendedorProvider with ChangeNotifier {
       _errorMessage = DioErrorHandler.handleDioException(dioErr);
       return false;
     } catch (e) {
-      _errorMessage = "Erro inesperado ao transferir empréstimos: $e";
+      _errorMessage = "Erro inesperado ao transferir contas a receber: $e";
       return false;
     } finally {
       _isLoading = false;

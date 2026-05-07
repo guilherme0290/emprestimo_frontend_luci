@@ -769,6 +769,20 @@ Obrigado!
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 const SizedBox(width: 8),
+                if (isEmpresa)
+                  GestureDetector(
+                    onTap: _abrirEditarRecorrencia,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      padding: const EdgeInsets.all(6),
+                      child: const Icon(Icons.edit_note,
+                          size: 16, color: Colors.lightBlueAccent),
+                    ),
+                  ),
+                if (isEmpresa) const SizedBox(width: 8),
                 podeExcluir
                     ? GestureDetector(
                         onTap: _confirmarExclusaoContrato,
@@ -812,6 +826,464 @@ Obrigado!
         const SnackBar(content: Text("Erro ao gerar relatório em PDF.")),
       );
     }
+  }
+
+  Future<void> _abrirEditarRecorrencia() async {
+    if (_emprestimo == null) return;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.role != Role.EMPRESA) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text("Apenas perfil EMPRESA pode editar contrato.")),
+      );
+      return;
+    }
+    final proximaParcelaPendente = _emprestimo!.parcelas
+        .where((p) => p.status != "PAGA")
+        .toList()
+      ..sort((a, b) => a.dataVencimento.compareTo(b.dataVencimento));
+    final parcelaEscopoAtual =
+        proximaParcelaPendente.isNotEmpty ? proximaParcelaPendente.first : null;
+    final atual = _emprestimo!.cobrancaRecorrente;
+    final valorController = TextEditingController(
+      text: Util.formatarMoeda(atual?.valorBase ?? _emprestimo!.valor),
+    );
+    final diaController = TextEditingController(
+      text: (atual?.diaVencimento ?? '').toString(),
+    );
+    String escopo = "PROXIMA_E_FUTURAS";
+    DateTime? novaData;
+    int? novoDia = atual?.diaVencimento;
+    String periodicidade = atual?.periodicidade ?? _emprestimo!.tipoPagamento;
+    String politicaVencimento = atual?.politicaVencimento ?? "MANTER_DIA";
+    String politicaDiaNaoUtil = atual?.politicaDiaNaoUtil ?? "POSTERGAR";
+    String tipoTermino = atual?.tipoTermino ?? "SEM_FIM";
+    final ciclosController = TextEditingController(
+      text: (atual?.quantidadeCiclos ?? '').toString(),
+    );
+    DateTime? dataFim = atual?.dataFim != null
+        ? DateTime.tryParse(atual!.dataFim!)
+        : null;
+
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return AlertDialog(
+              title: const Text("Editar contrato"),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        "Alterações no contrato afetam apenas cobranças futuras.",
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: escopo,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(
+                            value: "APENAS_ESTA",
+                            child: Text("Apenas esta parcela")),
+                        DropdownMenuItem(
+                            value: "PROXIMA_E_FUTURAS",
+                            child: Text("Próxima e futuras")),
+                      ],
+                      onChanged: (v) =>
+                          setModalState(() => escopo = v ?? "PROXIMA_E_FUTURAS"),
+                      decoration: const InputDecoration(labelText: "Escopo"),
+                    ),
+                    const SizedBox(height: 12),
+                    if (escopo == "PROXIMA_E_FUTURAS" &&
+                        _emprestimo!.tipoContrato == "RECORRENTE") ...[
+                      DropdownButtonFormField<String>(
+                        value: periodicidade,
+                        isExpanded: true,
+                        items: const [
+                          DropdownMenuItem(value: "MENSAL", child: Text("Mensal")),
+                          DropdownMenuItem(value: "SEMANAL", child: Text("Semanal")),
+                          DropdownMenuItem(value: "QUINZENAL", child: Text("Quinzenal")),
+                          DropdownMenuItem(value: "DIARIO", child: Text("Diário")),
+                        ],
+                        onChanged: (v) =>
+                            setModalState(() => periodicidade = v ?? "MENSAL"),
+                        decoration: const InputDecoration(
+                          labelText: "Periodicidade",
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    TextFormField(
+                      controller: valorController,
+                      keyboardType: TextInputType.number,
+                      decoration:
+                          const InputDecoration(labelText: "Novo valor"),
+                    ),
+                    const SizedBox(height: 12),
+                    if (_emprestimo!.tipoPagamento == "MENSAL" ||
+                        (escopo == "PROXIMA_E_FUTURAS" &&
+                            _emprestimo!.tipoContrato == "RECORRENTE" &&
+                            periodicidade == "MENSAL"))
+                      TextFormField(
+                        controller: diaController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: "Dia vencimento (mensal)",
+                        ),
+                        onChanged: (v) => novoDia = int.tryParse(v),
+                      ),
+                    if (_emprestimo!.tipoPagamento == "MENSAL" ||
+                        (escopo == "PROXIMA_E_FUTURAS" &&
+                            _emprestimo!.tipoContrato == "RECORRENTE" &&
+                            periodicidade == "MENSAL"))
+                      const SizedBox(height: 12),
+                    if (escopo == "PROXIMA_E_FUTURAS" &&
+                        _emprestimo!.tipoContrato == "RECORRENTE") ...[
+                      DropdownButtonFormField<String>(
+                        value: politicaVencimento,
+                        isExpanded: true,
+                        items: const [
+                          DropdownMenuItem(
+                              value: "MANTER_DIA", child: Text("Vencimento: Manter dia")),
+                          DropdownMenuItem(
+                              value: "ULTIMO_DIA_MES", child: Text("Vencimento: Último dia do mês")),
+                        ],
+                        selectedItemBuilder: (context) => const [
+                          Text("Manter dia", overflow: TextOverflow.ellipsis),
+                          Text("Último dia", overflow: TextOverflow.ellipsis),
+                        ],
+                        onChanged: (v) => setModalState(
+                            () => politicaVencimento = v ?? "MANTER_DIA"),
+                        decoration: const InputDecoration(
+                          labelText: "Política vencimento",
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: politicaDiaNaoUtil,
+                        isExpanded: true,
+                        items: const [
+                          DropdownMenuItem(
+                              value: "POSTERGAR", child: Text("Fds/Feriado: Postergar")),
+                          DropdownMenuItem(
+                              value: "ANTECIPAR", child: Text("Fds/Feriado: Antecipar")),
+                          DropdownMenuItem(
+                              value: "IGNORAR", child: Text("Fds/Feriado: Ignorar")),
+                        ],
+                        selectedItemBuilder: (context) => const [
+                          Text("Postergar", overflow: TextOverflow.ellipsis),
+                          Text("Antecipar", overflow: TextOverflow.ellipsis),
+                          Text("Ignorar", overflow: TextOverflow.ellipsis),
+                        ],
+                        onChanged: (v) => setModalState(
+                            () => politicaDiaNaoUtil = v ?? "POSTERGAR"),
+                        decoration: const InputDecoration(
+                          labelText: "Política dia não útil",
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: tipoTermino,
+                        isExpanded: true,
+                        items: const [
+                          DropdownMenuItem(value: "SEM_FIM", child: Text("Sem data final")),
+                          DropdownMenuItem(value: "POR_DATA", child: Text("Encerrar por data")),
+                          DropdownMenuItem(value: "POR_CICLOS", child: Text("Encerrar por ciclos")),
+                        ],
+                        onChanged: (v) =>
+                            setModalState(() => tipoTermino = v ?? "SEM_FIM"),
+                        decoration: const InputDecoration(
+                          labelText: "Término",
+                        ),
+                      ),
+                      if (tipoTermino == "POR_CICLOS") ...[
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: ciclosController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: "Quantidade de ciclos",
+                          ),
+                        ),
+                      ],
+                      if (tipoTermino == "POR_DATA") ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                dataFim == null
+                                    ? "Sem data final"
+                                    : "Fim: ${FormatData.formatarDataCompletaPadrao(dataFim!)}",
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                final picked = await showDatePicker(
+                                  context: ctx,
+                                  initialDate: dataFim ?? DateTime.now(),
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2100),
+                                );
+                                if (picked != null) {
+                                  setModalState(() => dataFim = picked);
+                                }
+                              },
+                              child: const Text("Definir fim"),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                    ],
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            novaData == null
+                                ? "Sem nova data"
+                                : "Data: ${FormatData.formatarDataCompletaPadrao(novaData!)}",
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: ctx,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2100),
+                            );
+                            if (picked != null) {
+                              setModalState(() => novaData = picked);
+                            }
+                          },
+                          child: const Text("Nova data"),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text("Cancelar"),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text("Salvar"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmado != true) return;
+
+    final provider = Provider.of<ContasReceberProvider>(context, listen: false);
+    final payload = <String, dynamic>{};
+    final valor = Util.removerMascaraValor(valorController.text);
+    if (valor > 0) payload["valorBase"] = valor;
+    if (novoDia != null && novoDia! > 0) payload["diaVencimento"] = novoDia;
+    if (novaData != null) {
+      payload["dataInicio"] = novaData!.toIso8601String().split('T').first;
+    }
+    if (escopo == "PROXIMA_E_FUTURAS") {
+      payload["periodicidade"] = periodicidade;
+      payload["politicaVencimento"] = politicaVencimento;
+      payload["politicaDiaNaoUtil"] = politicaDiaNaoUtil;
+      payload["tipoTermino"] = tipoTermino;
+      final ciclos = int.tryParse(ciclosController.text);
+      if (tipoTermino == "POR_CICLOS" && ciclos != null && ciclos > 0) {
+        payload["quantidadeCiclos"] = ciclos;
+      }
+      if (tipoTermino == "POR_DATA" && dataFim != null) {
+        payload["dataFim"] = dataFim!.toIso8601String().split('T').first;
+      }
+    }
+
+    ContasReceberDTO? atualizado;
+    if (escopo == "APENAS_ESTA") {
+      if (parcelaEscopoAtual == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Não há parcela pendente para editar.")),
+        );
+        return;
+      }
+      final payloadParcela = <String, dynamic>{};
+      if (valor > 0) payloadParcela["valor"] = valor;
+      if (novaData != null) {
+        payloadParcela["dataVencimento"] =
+            novaData!.toIso8601String().split('T').first;
+      }
+      atualizado = await provider.atualizarParcelaAvulsa(
+        contasReceberId: _emprestimo!.id,
+        parcelaId: parcelaEscopoAtual.id,
+        payload: payloadParcela,
+      );
+    } else if (_emprestimo!.tipoContrato == "RECORRENTE") {
+      final payloadProxima = <String, dynamic>{};
+      if (valor > 0) payloadProxima["valorBase"] = valor;
+      if (novoDia != null && novoDia! > 0) payloadProxima["diaVencimento"] = novoDia;
+      if (novaData != null) {
+        payloadProxima["dataInicio"] = novaData!.toIso8601String().split('T').first;
+      }
+
+      final proximaAtualizada = await provider.atualizarRegraRecorrencia(
+        contasReceberId: _emprestimo!.id,
+        escopo: "PROXIMA",
+        payload: payloadProxima,
+      );
+      if (proximaAtualizada == null) {
+        atualizado = null;
+      } else {
+        atualizado = await provider.atualizarRegraRecorrencia(
+          contasReceberId: _emprestimo!.id,
+          escopo: "FUTURAS",
+          payload: payload,
+        );
+      }
+    } else {
+      final payloadParcelado = <String, dynamic>{};
+      if (valor > 0) payloadParcelado["valor"] = valor;
+      if (novaData != null) {
+        payloadParcelado["dataVencimento"] =
+            novaData!.toIso8601String().split('T').first;
+      }
+      atualizado = await provider.atualizarParcelasContrato(
+        contasReceberId: _emprestimo!.id,
+        escopo: "FUTURAS",
+        payload: payloadParcelado,
+      );
+    }
+
+    if (!mounted) return;
+    if (atualizado == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(provider.errorMessage ?? "Erro ao atualizar.")),
+      );
+      return;
+    }
+
+    setState(() {
+      _emprestimo = atualizado;
+      _initializeParcelas();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Contrato atualizado com sucesso.")),
+    );
+  }
+
+  Future<void> _abrirEditarParcelaAvulsa(ParcelaDTO parc) async {
+    if (_emprestimo == null) return;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.role != Role.EMPRESA) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text("Apenas perfil EMPRESA pode editar parcelas.")),
+      );
+      return;
+    }
+    if (parc.status == "PAGA") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Não é permitido editar parcela paga.")),
+      );
+      return;
+    }
+    final valorController =
+        TextEditingController(text: Util.formatarMoeda(parc.valor));
+    DateTime dataSelecionada = DateTime.parse(parc.dataVencimento);
+
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => AlertDialog(
+          title: Text("Editar parcela ${parc.numeroParcela}"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: valorController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: "Valor"),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      "Vencimento: ${FormatData.formatarDataCompletaPadrao(dataSelecionada)}",
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: dataSelecionada,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) {
+                        setModalState(() => dataSelecionada = picked);
+                      }
+                    },
+                    child: const Text("Alterar"),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text("Cancelar"),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text("Salvar"),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmado != true) return;
+    final provider = Provider.of<ContasReceberProvider>(context, listen: false);
+    final atualizado = await provider.atualizarParcelaAvulsa(
+      contasReceberId: _emprestimo!.id,
+      parcelaId: parc.id,
+      payload: {
+        "valor": Util.removerMascaraValor(valorController.text),
+        "dataVencimento": dataSelecionada.toIso8601String().split('T').first,
+      },
+    );
+    if (!mounted) return;
+    if (atualizado == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(provider.errorMessage ?? "Erro ao atualizar parcela.")),
+      );
+      return;
+    }
+    setState(() {
+      _emprestimo = atualizado;
+      _initializeParcelas();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Parcela atualizada com sucesso.")),
+    );
   }
 
   void _mostrarAcoesRelatorio(File pdfFile) {
@@ -898,6 +1370,8 @@ Obrigado!
   }
 
   Widget _buildListaParcelas(ContasReceberDTO emp) {
+    final isEmpresa =
+        Provider.of<AuthProvider>(context, listen: false).role == Role.EMPRESA;
     final parcelas = emp.parcelas;
     final firstSwipeIndex =
         parcelas.indexWhere((parcela) => parcela.status != "PAGA");
@@ -1007,6 +1481,16 @@ Obrigado!
                     ),
                     Row(
                       children: [
+                        if (parc.status != "PAGA" && isEmpresa)
+                          IconButton(
+                            onPressed: () => _abrirEditarParcelaAvulsa(parc),
+                            icon: const Icon(
+                              Icons.edit,
+                              color: Colors.white70,
+                              size: 18,
+                            ),
+                            tooltip: "Editar parcela",
+                          ),
                         Transform.scale(
                           scale: 1.4,
                           child: Checkbox(

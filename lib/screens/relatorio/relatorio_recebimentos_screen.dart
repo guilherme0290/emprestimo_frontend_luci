@@ -153,12 +153,20 @@ class _RelatorioRecebimentosScreenState
               if (!_isVendedor && caixas.isNotEmpty)
                 DropdownButtonFormField<int?>(
                   initialValue: caixaValue,
-                  items: caixas
-                      .map((caixa) => DropdownMenuItem<int>(
-                            value: caixa.id,
-                            child: Text(caixa.descricao),
-                          ))
-                      .toList(),
+                  isExpanded: true,
+                  items: [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('Todos os Caixas'),
+                    ),
+                    ...caixas.map((caixa) => DropdownMenuItem<int?>(
+                          value: caixa.id,
+                          child: Text(
+                            caixa.descricao,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        )),
+                  ],
                   onChanged: (val) => setState(() => caixaIdSelecionado = val),
                   decoration: const InputDecoration(
                     labelText: 'Responsavel',
@@ -167,14 +175,22 @@ class _RelatorioRecebimentosScreenState
                 ),
               const SizedBox(height: 12),
               if (vendedores.isNotEmpty)
-                DropdownButtonFormField<int>(
+                DropdownButtonFormField<int?>(
                   initialValue: vendedorValue,
-                  items: vendedores
-                      .map((v) => DropdownMenuItem<int>(
-                            value: v.id,
-                            child: Text(v.nome),
-                          ))
-                      .toList(),
+                  isExpanded: true,
+                  items: [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('Todos os vendedores'),
+                    ),
+                    ...vendedores.map((v) => DropdownMenuItem<int?>(
+                          value: v.id,
+                          child: Text(
+                            v.nome,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        )),
+                  ],
                   onChanged: _isVendedor
                       ? null
                       : (val) => setState(() => vendedorIdSelecionado = val),

@@ -71,7 +71,7 @@ class _DetalheVendedorScreenState extends State<DetalheVendedorScreen> {
                               ),
                               const SizedBox(height: 16),
                               const Text(
-                                "Nenhum empréstimo encontrado para este vendedor!",
+                                "Nenhuma conta a receber encontrada para este vendedor!",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
