@@ -219,7 +219,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
   void _avaliarAplicativo() async {
     final androidUrl = Uri.parse(
-        "https://play.google.com/store/apps/details?id=br.com.sccomercio.app");
+        "https://play.google.com/store/apps/details?id=br.com.sccomercios.app");
 
     if (await canLaunchUrlString(androidUrl.toString())) {
       await launchUrlString(androidUrl.toString(),

@@ -1,4 +1,4 @@
-package br.com.sccomercio.app
+package br.com.sccomercios.app
 
 //import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.android.FlutterFragmentActivity

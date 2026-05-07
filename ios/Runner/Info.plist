@@ -71,7 +71,7 @@
 				<string>Editor</string>
 				<key>CFBundleURLSchemes</key>
 				<array>
-					<string>br.com.sccomercio.app</string>
+					<string>br.com.sccomercios.app</string>
 					<!-- ajuste para o bundle ID do seu app -->
 				</array>
 				<key>CFBundleURLName</key>

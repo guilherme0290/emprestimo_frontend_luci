@@ -3,7 +3,7 @@
 
 adb shell pm list users
 
-**desintalar app via ADB  -> adb uninstall --user 10 br.com.sccomercio.app
+**desintalar app via ADB  -> adb uninstall --user 10 br.com.sccomercios.app
 
 
 # build app android
