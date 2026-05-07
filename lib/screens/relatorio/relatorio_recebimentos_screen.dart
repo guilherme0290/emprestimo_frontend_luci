@@ -151,15 +151,15 @@ class _RelatorioRecebimentosScreenState
               _buildDateSelector(),
               const SizedBox(height: 12),
               if (!_isVendedor && caixas.isNotEmpty)
-                DropdownButtonFormField<int?>(
-                  initialValue: caixaValue,
+                DropdownButtonFormField<int>(
+                  initialValue: caixaValue ?? 0,
                   isExpanded: true,
                   items: [
-                    const DropdownMenuItem<int?>(
-                      value: null,
+                    const DropdownMenuItem<int>(
+                      value: 0,
                       child: Text('Todos os Caixas'),
                     ),
-                    ...caixas.map((caixa) => DropdownMenuItem<int?>(
+                    ...caixas.map((caixa) => DropdownMenuItem<int>(
                           value: caixa.id,
                           child: Text(
                             caixa.descricao,
@@ -167,7 +167,7 @@ class _RelatorioRecebimentosScreenState
                           ),
                         )),
                   ],
-                  onChanged: (val) => setState(() => caixaIdSelecionado = val),
+                  onChanged: (val) => setState(() => caixaIdSelecionado = val == 0 ? null : val),
                   decoration: const InputDecoration(
                     labelText: 'Responsavel',
                     border: OutlineInputBorder(),
@@ -175,15 +175,15 @@ class _RelatorioRecebimentosScreenState
                 ),
               const SizedBox(height: 12),
               if (vendedores.isNotEmpty)
-                DropdownButtonFormField<int?>(
-                  initialValue: vendedorValue,
+                DropdownButtonFormField<int>(
+                  initialValue: vendedorValue ?? 0,
                   isExpanded: true,
                   items: [
-                    const DropdownMenuItem<int?>(
-                      value: null,
+                    const DropdownMenuItem<int>(
+                      value: 0,
                       child: Text('Todos os vendedores'),
                     ),
-                    ...vendedores.map((v) => DropdownMenuItem<int?>(
+                    ...vendedores.map((v) => DropdownMenuItem<int>(
                           value: v.id,
                           child: Text(
                             v.nome,
@@ -193,7 +193,7 @@ class _RelatorioRecebimentosScreenState
                   ],
                   onChanged: _isVendedor
                       ? null
-                      : (val) => setState(() => vendedorIdSelecionado = val),
+                      : (val) => setState(() => vendedorIdSelecionado = val == 0 ? null : val),
                   decoration: const InputDecoration(
                     labelText: 'Cobrador',
                     border: OutlineInputBorder(),
