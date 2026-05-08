@@ -167,7 +167,8 @@ class _RelatorioRecebimentosScreenState
                           ),
                         )),
                   ],
-                  onChanged: (val) => setState(() => caixaIdSelecionado = val == 0 ? null : val),
+                  onChanged: (val) => setState(
+                      () => caixaIdSelecionado = val == 0 ? null : val),
                   decoration: const InputDecoration(
                     labelText: 'Responsavel',
                     border: OutlineInputBorder(),
@@ -193,7 +194,8 @@ class _RelatorioRecebimentosScreenState
                   ],
                   onChanged: _isVendedor
                       ? null
-                      : (val) => setState(() => vendedorIdSelecionado = val == 0 ? null : val),
+                      : (val) => setState(
+                          () => vendedorIdSelecionado = val == 0 ? null : val),
                   decoration: const InputDecoration(
                     labelText: 'Cobrador',
                     border: OutlineInputBorder(),

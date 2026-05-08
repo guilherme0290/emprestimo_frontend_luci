@@ -8,6 +8,12 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+def versionProperties = new Properties()
+def versionPropertiesFile = rootProject.file('version.properties')
+if (versionPropertiesFile.exists()) {
+    versionProperties.load(new FileInputStream(versionPropertiesFile))
+}
+
 android {
     namespace = "br.com.sccomercios.app"
     compileSdk = 36
@@ -42,9 +48,8 @@ android {
         applicationId = "br.com.sccomercios.app"      
         minSdkVersion = flutter.minSdkVersion
         targetSdk = 35
-        versionCode = 2
-        versionName = '1.0.1'
-
+        versionCode = (versionProperties['VERSION_CODE'] ?: "1").toInteger()
+        versionName = versionProperties['VERSION_NAME'] ?: "1.0.0"
     //     manifestPlaceholders = [
     //     applicationName: ".MyApplication"
     // ]

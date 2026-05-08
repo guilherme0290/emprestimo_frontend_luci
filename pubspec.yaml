@@ -64,7 +64,6 @@ dependencies:
   in_app_purchase: ^3.2.3
   package_info_plus: ^8.3.0
   local_auth: ^2.3.0
-  rive_common: ^0.4.13
   pdf: ^3.10.8
   printing: ^5.13.0
   path_provider: ^2.1.4
@@ -86,6 +85,10 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^4.0.0
+
+dependency_overrides:
+  rive: ^0.14.6
+  rive_native: ^0.1.6
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -134,21 +137,18 @@ flutter_launcher_icons:
   min_sdk_android: 21
 
 flutter_native_splash:
-  color: "#ffffff" # fundo branco
+  color: "#385A83" # fallback para plataformas sem gradiente nativo
   image: assets/logo.png
-  branding: assets/logo.png
-  branding_bottom_padding: 24
-  color_dark: "#ffffff" # fundo branco no modo escuro também
+  color_dark: "#385A83"
   android: true
   ios: true
   image_dark: assets/logo.png
-  branding_dark: assets/logo.png
 
   android_12:
     image: assets/logo.png
-    icon_background_color: "#ffffff" # fundo branco Android 12
+    icon_background_color: "#385A83"
     image_dark: assets/logo.png
-    icon_background_color_dark: "#ffffff" # fundo branco no modo escuro
+    icon_background_color_dark: "#385A83"
 
   web: false
    

@@ -1006,29 +1006,21 @@ packages:
     source: hosted
     version: "3.0.2"
   rive:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: rive
-      sha256: d3901d82850e17395a149d05c8b446a16eca42b328bac6ca9bd9ed760016f20c
+      sha256: "4030119faa24050d0f5a49646e53f059121464e62662698c42c3d5886fe0ab27"
       url: "https://pub.dev"
     source: hosted
-    version: "0.14.1"
-  rive_common:
-    dependency: "direct main"
-    description:
-      name: rive_common
-      sha256: "2ba42f80d37a4efd0696fb715787c4785f8a13361e8aea9227c50f1e78cf763a"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.4.15"
+    version: "0.14.6"
   rive_native:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: rive_native
-      sha256: "955e7820b7cd508f4885aa6f25d6240791c932756291c400326ab8b1f3c57c7d"
+      sha256: "05f59b4250410a634a3e4e8d07f97b2616ce20c24451b02ff814fb61135172bd"
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.1"
+    version: "0.1.6"
   share_plus:
     dependency: "direct main"
     description:

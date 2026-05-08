@@ -3,9 +3,10 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION_FILE="$ROOT_DIR/android/version.properties"
+DIST_DIR="$ROOT_DIR/build/dist"
 
 usage() {
-  cat <<'EOF'
+  cat <<'EOT'
 Uso:
   scripts/build_android_release.sh [apk|aab|both]
 
@@ -20,7 +21,8 @@ Versão do app:
 Saídas:
   APK: build/app/outputs/flutter-apk/app-release.apk
   AAB: build/app/outputs/bundle/release/app-release.aab
-EOF
+  Cópias versionadas: build/dist/
+EOT
 }
 
 TARGET="${1:-both}"
@@ -47,24 +49,49 @@ if [[ ! -f "$VERSION_FILE" ]]; then
   exit 1
 fi
 
+VERSION_CODE="$(grep -E '^VERSION_CODE=' "$VERSION_FILE" | cut -d'=' -f2-)"
+VERSION_NAME="$(grep -E '^VERSION_NAME=' "$VERSION_FILE" | cut -d'=' -f2-)"
+
+if [[ -z "$VERSION_CODE" || -z "$VERSION_NAME" ]]; then
+  echo "VERSION_CODE ou VERSION_NAME ausente em $VERSION_FILE"
+  exit 1
+fi
+
+if ! [[ "$VERSION_CODE" =~ ^[0-9]+$ ]]; then
+  echo "VERSION_CODE inválido: $VERSION_CODE"
+  exit 1
+fi
+
 echo "Versão atual:"
-grep -E '^VERSION_(CODE|NAME)=' "$VERSION_FILE" || true
+echo "  VERSION_CODE=$VERSION_CODE"
+echo "  VERSION_NAME=$VERSION_NAME"
 echo
 
 cd "$ROOT_DIR"
 flutter pub get
 
+BUILD_ARGS=(--release --build-name="$VERSION_NAME" --build-number="$VERSION_CODE")
+
 if [[ "$TARGET" == "apk" || "$TARGET" == "both" ]]; then
   echo "Gerando APK release assinado..."
-  flutter build apk --release
+  flutter build apk "${BUILD_ARGS[@]}"
 fi
 
 if [[ "$TARGET" == "aab" || "$TARGET" == "both" ]]; then
   echo "Gerando AAB release assinado..."
-  flutter build appbundle --release
+  flutter build appbundle "${BUILD_ARGS[@]}"
+fi
+
+mkdir -p "$DIST_DIR"
+if [[ -f "$ROOT_DIR/build/app/outputs/flutter-apk/app-release.apk" ]]; then
+  cp "$ROOT_DIR/build/app/outputs/flutter-apk/app-release.apk" "$DIST_DIR/emprestimos_app_luciano-v${VERSION_NAME}+${VERSION_CODE}.apk"
+fi
+if [[ -f "$ROOT_DIR/build/app/outputs/bundle/release/app-release.aab" ]]; then
+  cp "$ROOT_DIR/build/app/outputs/bundle/release/app-release.aab" "$DIST_DIR/emprestimos_app_luciano-v${VERSION_NAME}+${VERSION_CODE}.aab"
 fi
 
 echo
 echo "Build finalizada."
 [[ -f "$ROOT_DIR/build/app/outputs/flutter-apk/app-release.apk" ]] && echo "APK: build/app/outputs/flutter-apk/app-release.apk"
 [[ -f "$ROOT_DIR/build/app/outputs/bundle/release/app-release.aab" ]] && echo "AAB: build/app/outputs/bundle/release/app-release.aab"
+[[ -d "$DIST_DIR" ]] && echo "Arquivos versionados: build/dist/"
